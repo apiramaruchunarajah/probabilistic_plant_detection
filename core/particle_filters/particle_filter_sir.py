@@ -61,5 +61,5 @@ class ParticleFilterSIR(ParticleFilter):
         self.particles = self.normalize_weights(new_particles)
 
         # Resample if needed
-        #if self.needs_resampling():
-        #    self.particles = self.resampler.resample(self.particles, self.n_particles, self.resampling_algorithm)
+        if self.needs_resampling():
+            self.particles = self.resampler.resample(self.particles, self.n_particles, self.resampling_algorithm)
