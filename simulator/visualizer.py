@@ -44,11 +44,11 @@ class Visualizer:
             if particle_filter.particles[i][0] > 0.70:
                 color = (0, 0, 255)
                 thickness = 5
-            elif particle_filter.particles[i][0] > 0.40:
-                color = (0, 255, 0)
+            elif particle_filter.particles[i][0] > 0.30:
+                color = (255, 0, 0)
                 thickness = 4
             else:
-                color = (255, 0, 0)
+                color = (0, 255, 0)
                 thickness = 2
 
             cv.drawMarker(self.img, center, color, markerType=cv.MARKER_DIAMOND,
