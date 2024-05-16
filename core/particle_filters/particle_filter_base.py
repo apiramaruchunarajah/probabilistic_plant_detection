@@ -76,16 +76,14 @@ class ParticleFilter:
         :return: Validated particle state.
         """
 
-        # Make sure state does not exceed allowed limits
+        # Make sure state does not exceed allowed limits (cyclic world)
         # TODO: find a better way of validating states
 
-        return state
+        while state[0] < self.position_min:
+            state[0] += (self.position_max - self.position_min)
 
         if state[0] > self.position_max:
-            state[0] = self.position_min
-
-        if state[0] < self.position_min:
-            state[0] = self.position_max
+            state[0] -= (self.position_max - self.position_min)
 
         return state
 
@@ -175,12 +173,7 @@ class ParticleFilter:
         # Compute forward motion by combining deterministic forward motion with additive zero mean Gaussian noise
         motion_move_distance_with_noise = np.random.normal(motion_move_distance, self.process_noise[0], 1)[0]
 
-        # Move the position of the particle
-        # Special case where a particle leaves the image : the particle is being put back -motion_move_distance behind
-        if propagated_sample[0]+motion_move_distance_with_noise > self.position_max:
-            propagated_sample[0] -= motion_move_distance  # or motion_move_distance_with_noise?
-        else:
-            propagated_sample[0] += motion_move_distance_with_noise
+        propagated_sample[0] += motion_move_distance_with_noise
 
         # Make sure we stay within cyclic world
         return self.validate_state(propagated_sample)
