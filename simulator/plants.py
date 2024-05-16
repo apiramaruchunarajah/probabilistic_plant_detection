@@ -110,8 +110,6 @@ class Plants:
         tracked_plant_height_with_noise = np.random.normal(loc=tracked_plant_height,
                                                            scale=self.std_meas_position, size=1)[0]
 
-        print("Measured position without and with (plants) noise : {}, {}".format(tracked_plant_height,
-                                                                         tracked_plant_height_with_noise))
         return tracked_plant_height_with_noise
 
     def getPlantsToDraw(self, row_idx):

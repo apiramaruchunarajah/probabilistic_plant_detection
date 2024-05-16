@@ -173,7 +173,12 @@ class ParticleFilter:
         # Compute forward motion by combining deterministic forward motion with additive zero mean Gaussian noise
         motion_move_distance_with_noise = np.random.normal(motion_move_distance, self.process_noise[0], 1)[0]
 
-        propagated_sample[0] += motion_move_distance_with_noise
+        # If the new position value is more the height than we move back the particle
+        new_pos = propagated_sample[0] + motion_move_distance_with_noise
+        if new_pos > self.position_max:
+            propagated_sample[0] -= motion_move_distance_with_noise + (new_pos - self.position_max)
+        else:
+            propagated_sample[0] = new_pos
 
         # Make sure we stay within cyclic world
         return self.validate_state(propagated_sample)

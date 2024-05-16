@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 import cv2 as cv
 
+import matplotlib.pyplot as plt
+import numpy as np
+
 # Simulation + plotting requires a robot, visualizer and world
 from simulator import Plants, Visualizer, World
 
@@ -49,12 +52,12 @@ if __name__ == '__main__':
     # Particle filter settings
     ##
 
-    number_of_particles = 40
+    number_of_particles = 100
     # For the moment we track position, which is between 0 and height
     pf_state_limits = [0, world.height]
 
     # Process model noise (zero mean additive Gaussian noise)
-    motion_model_move_distance_std = 0
+    motion_model_move_distance_std = 25
     process_noise = [motion_model_move_distance_std]
 
     # Measurement noise (zero mean additive Gaussian noise)
@@ -76,6 +79,7 @@ if __name__ == '__main__':
     ##
     # Start simulation
     ##
+    max_weights = []
     for i in range(n_time_steps):
 
         # Simulate plants motion (required motion will not excatly be achieved)
@@ -86,13 +90,27 @@ if __name__ == '__main__':
 
         # Update SIR particle filter
         particle_filter_sir.update(plants_setpoint_motion_move_distance, meas_position)
-        print("Particles after update :")
-        particle_filter_sir.print_particles()
 
-        print("Average, Max weight : {}, {}%".format(particle_filter_sir.get_average_state(),
-                                                     particle_filter_sir.get_max_weight()*100))
+        # Degeneracy problem
+        # Show maximum normalized particle weight (converges to 1.0)
+        w_max = particle_filter_sir.get_max_weight()
+        max_weights.append(w_max)
+        # Distance between the measured value and the average particle value
+        correctness = np.sqrt(np.square(particle_filter_sir.get_average_state()-meas_position))
+        print("Time step {}: max weight: {}, correctness: {}".format(i, w_max, correctness))
 
         # Visualization
         visualizer.draw(plants, particle_filter_sir)
         cv.imshow("Crop rows", visualizer.img)
         cv.waitKey(0)
+
+    # Print Degeneracy problem
+    ## Plot weights as function of time step
+    #fontSize = 14
+    #plt.rcParams.update({'font.size': fontSize})
+    #plt.plot(range(n_time_steps), max_weights, 'k')
+    #plt.xlabel("Time index")
+    #plt.ylabel("Maximum particle weight")
+    #plt.xlim(0, n_time_steps - 1)
+    #plt.ylim(0, 1.1)
+    #plt.show()
