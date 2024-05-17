@@ -1,31 +1,20 @@
 from .particle_filter_base import ParticleFilter
 from core.resampling.resampler import Resampler
 
+# Modified code from :
+# Jos Elfring, Elena Torta, and René van de Molengraft.
+# Particle filters: A hands-on tutorial.
+# Sensors, 21(2), 2021.
+
 
 class ParticleFilterSIR(ParticleFilter):
-    """
-    Notes:
-        * State is (x, y, heading), where x and y are in meters and heading in radians
-        * State space assumed limited size in each dimension, world is cyclic (hence leaving at x_max means entering at
-        x_min)
-        * propagation and measurement models are largely hardcoded (except for standard deviations.
-    """
-
     def __init__(self,
                  number_of_particles,
                  limits,
                  process_noise,
                  measurement_noise,
                  resampling_algorithm):
-        """
-        Initialize the SIR particle filter.
 
-        :param number_of_particles: Number of particles.
-        :param limits: List with maximum and minimum values for x and y dimension: [xmin, xmax, ymin, ymax].
-        :param process_noise: Process noise parameters (standard deviations): [std_forward, std_angular].
-        :param measurement_noise: Measurement noise parameters (standard deviations): [std_range, std_angle].
-        :param resampling_algorithm: Algorithm that must be used for core.
-        """
         # Initialize particle filter base class
         ParticleFilter.__init__(self, number_of_particles, limits, process_noise, measurement_noise)
 
@@ -42,7 +31,6 @@ class ParticleFilterSIR(ParticleFilter):
         """
         return True
 
-    #TODO : make measurement a list
     def update(self, plants_motion_move_distance, measurement):
         # Loop over all particles
         new_particles = []
@@ -52,7 +40,6 @@ class ParticleFilterSIR(ParticleFilter):
 
             # Compute current particle's weight
             weight = par[0] * self.compute_likelihood(propagated_state, measurement)
-            #print("Old and new weight before normalization : {}, {}".format(par[0], weight))
 
             # Store
             new_particles.append([weight, propagated_state])
