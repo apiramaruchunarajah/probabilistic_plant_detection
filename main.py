@@ -15,11 +15,6 @@ from core.particle_filters.particle_filter_sir import ParticleFilterSIR
 
 if __name__ == '__main__':
 
-    print("Running example particle filter demo.")
-
-    ##
-    # Set simulated world and visualization properties
-    ##
     # Initialize world
     world = World(500, 700, 10)
 
@@ -38,10 +33,11 @@ if __name__ == '__main__':
 
     # True simulated plants motion is set point plus additive zero mean Gaussian noise with these standard deviation
     # Plants move at speed +11 +- std
+    # For the moment de movement has no noise
     true_plants_motion_move_distance_std = 0
 
     # Plants measurements are corrupted by measurement noise
-    true_plants_meas_noise_position_std = 0
+    true_plants_meas_noise_position_std = 7
 
     # Initialize plants
     plants = Plants(world, -500, 250, 80, 110, o=0, s=0, c=0, nb_rows=7, nb_plant_types=4)
@@ -57,6 +53,7 @@ if __name__ == '__main__':
     pf_state_limits = [0, world.height]
 
     # Process model noise (zero mean additive Gaussian noise)
+    # This noise has a huge impact on the correctness of the particle filter
     motion_model_move_distance_std = 25
     process_noise = [motion_model_move_distance_std]
 
@@ -65,7 +62,8 @@ if __name__ == '__main__':
     measurement_noise = [meas_model_position_std]
 
     # Set resampling algorithm used
-    algorithm = ResamplingAlgorithms.MULTINOMIAL
+    # TODO: compare with the other reampling algorithms
+    algorithm = ResamplingAlgorithms.STRATIFIED
 
     # Initialize SIR particle filter: resample every time step
     particle_filter_sir = ParticleFilterSIR(
@@ -74,6 +72,8 @@ if __name__ == '__main__':
         process_noise=process_noise,
         measurement_noise=measurement_noise,
         resampling_algorithm=algorithm)
+
+    # Particles are selected uniformly randomly
     particle_filter_sir.initialize_particles_uniform()
 
     ##
@@ -91,8 +91,7 @@ if __name__ == '__main__':
         # Update SIR particle filter
         particle_filter_sir.update(plants_setpoint_motion_move_distance, meas_position)
 
-        # Degeneracy problem
-        # Show maximum normalized particle weight (converges to 1.0)
+        # Show maximum normalized particle weight (converges to 1.0) and correctness (0 = correct)
         w_max = particle_filter_sir.get_max_weight()
         max_weights.append(w_max)
         # Distance between the measured value and the average particle value
