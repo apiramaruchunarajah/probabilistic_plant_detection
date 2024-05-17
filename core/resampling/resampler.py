@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 
-# Numpy
-import numpy as np
+# Source of the code :
+# Jos Elfring, Elena Torta, and René van de Molengraft.
+# Particle filters: A hands-on tutorial.
+# Sensors, 21(2), 2021.
 
 # Enum
 from enum import Enum
