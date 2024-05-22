@@ -99,7 +99,7 @@ if __name__ == '__main__':
         print("Time step {}: max weight: {}, correctness: {}".format(i, w_max, correctness))
 
         # Visualization
-        visualizer.draw(plants, particle_filter_sir)
+        visualizer.draw(plants, particle_filter_sir.particles, particle_filter_sir.n_particles)
         cv.imshow("Crop rows", visualizer.img)
         cv.waitKey(0)
 
