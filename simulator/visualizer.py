@@ -33,18 +33,18 @@ class Visualizer:
                         cv.drawMarker(self.img, center, (255, 255, 255), markerType=cv.MARKER_STAR,
                                       markerSize=int(50 * perspective_coef), thickness=5)
 
-    def draw_particles(self, particle_filter):
-        for i in range(particle_filter.n_particles):
+    def draw_particles(self, particles, n):
+        for i in range(n):
             # Coordinates of the particle
-            center = np.asarray([int(self.world.width/2), int(particle_filter.particles[i][1][0])])
+            center = np.asarray([int(self.world.width/2), int(particles[i][1][0])])
 
             perspective_coef = center[1] / self.world.height
 
             # Color of the particle in fonction of the its weight
-            if particle_filter.particles[i][0] > 0.70:
+            if particles[i][0] > 0.70:
                 color = (0, 0, 255)
                 thickness = 5
-            elif particle_filter.particles[i][0] > 0.30:
+            elif particles[i][0] > 0.30:
                 color = (255, 0, 0)
                 thickness = 4
             else:
@@ -54,13 +54,10 @@ class Visualizer:
             cv.drawMarker(self.img, center, color, markerType=cv.MARKER_DIAMOND,
                           markerSize=int((7*thickness) * perspective_coef), thickness=thickness)
 
-    def draw(self, plants, particle_filter):
+    def draw(self, plants, particles, n_particles):
         # Empty image
         self.img = np.zeros((self.world.height, self.world.width, 3), np.uint8)
 
         # Draw plants and particles
         self.draw_plants(plants)
-        self.draw_particles(particle_filter)
-
-        # cv.imshow("Crop rows", self.img)
-        # cv.waitKey(0)
+        self.draw_particles(particles, n_particles)
