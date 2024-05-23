@@ -62,26 +62,42 @@ class Visualizer:
         # Getting bottom plants coordinates and the number of right and left plants
         bottom_plants, nb_left_plants, nb_right_plants = self.get_bottom_plants(offset, position, ir)
 
+        # Drawing parameters
+        color = (255, 255, 255)
+        markerType = cv.MARKER_STAR
+
         # Drawing the plants located at the bottom
         perspective_coef = position / self.world.height
-        color = (255, 0, 0)
 
         for center in bottom_plants:
-            cv.drawMarker(self.img, center, color, markerType=cv.MARKER_DIAMOND,
+            cv.drawMarker(self.img, center, color, markerType=markerType,
                           markerSize=int(40 * perspective_coef), thickness=4)
 
         # Getting the crossing point between the row where the particular plant is and the top of the image.
         top_particular_crossing_point = self.get_top_crossing_point(offset, position, skew)
 
         # Getting the crossing point for each row : point of intersection between a row and the top of the image.
-        ir_top = convergence * ir
         top_crossing_points = self.get_top_plants(top_particular_crossing_point[0], top_particular_crossing_point[1],
-                                                  ir_top, nb_left_plants, nb_right_plants)
+                                                  ir, convergence, nb_left_plants, nb_right_plants)
 
-        # Drawing all the remaining plants
-        for center in top_crossing_points:
-            cv.drawMarker(self.img, center, color, markerType=cv.MARKER_DIAMOND,
-                          markerSize=int(40 * perspective_coef), thickness=4)
+        if len(bottom_plants) != len(top_crossing_points):
+            print("Error: number of bottom plants and number of top crossing points are not equal.")
+            return -1
+
+        # Drawing all the remaining plants row by row.
+        # For each row
+        for i in range(len(bottom_plants)):
+            bottom_plant = bottom_plants[i]
+            top_crossing_point = top_crossing_points[i]
+
+            # Getting the coordinates of the plants located in the row
+            row_plants = self.get_row_plants(bottom_plant, top_crossing_point, ip)
+
+            # Drawing the plants located in the row
+            for center in row_plants:
+                perspective_coef = center[1] / self.world.height
+                cv.drawMarker(self.img, center, color, markerType=markerType,
+                              markerSize=int(40 * perspective_coef), thickness=4)
 
     def draw_particular_plant(self, offset, position):
         """
@@ -96,7 +112,7 @@ class Visualizer:
         perspective_coef = center[1] / self.world.height
         color = (0, 255, 0)
 
-        cv.drawMarker(self.img, center, color, markerType=cv.MARKER_DIAMOND,
+        cv.drawMarker(self.img, center, color, markerType=cv.MARKER_STAR,
                       markerSize=int(40 * perspective_coef), thickness=4)
 
     def get_bottom_plants(self, offset, position, ir):
@@ -145,13 +161,9 @@ class Visualizer:
         x_coordinate = np.tan(skew) * bottom_plant_y + bottom_plant_x
         center = np.asarray([int(x_coordinate), 0])
 
-        # cv.line(self.img, (bottom_plant_x, bottom_plant_y), center, 255, 1)
-        # cv.line(self.img, (bottom_plant_x, bottom_plant_y), (250, 0), 255, 1)
-        # cv.line(self.img, (bottom_plant_x, bottom_plant_y), (500, bottom_plant_y), 255, 1)
-
         return center
 
-    def get_top_plants(self, top_offset, top_position, ir_at_top, nb_left_neighbors, nb_right_neighbors):
+    def get_top_plants(self, top_offset, top_position, ir_at_bottom, convergence, nb_left_neighbors, nb_right_neighbors):
         """
         Returns the coordinates of the plants that are located in the top crop row.
 
@@ -163,6 +175,9 @@ class Visualizer:
 
         # Number of plants that have been treated (in other word, while loop variable)
         nb_plants_treated = 0
+
+        # Inter-row at the top of the image
+        ir_at_top = int(convergence * ir_at_bottom)
 
         # Appending the left plants
         left_plant_x = top_offset
@@ -187,25 +202,58 @@ class Visualizer:
 
         return horizontal_neighbors
 
-    def get_row_plants(self):
+    def get_row_plants(self, bottom_center, top_crossing_point, ip):
         """
         Takes a plant at the bottom of the image and its row's crossing point with the top of the image.
-        Returns the coordinates of all the plants located in that row and that are within the image.
-        """
+        Returns the coordinates of all the plants located in that row and that are within the image. To do so, the algo-
+        rithm starts at the bottom plant and adds a plant on the line using the inter-plant distance, then starts again
+        using this plant as starting point. It ends when we are at the end of the line.
 
-        return True
+        TODO: take into account ip(y) and not ip !
+        """
+        # List of plants located in the row
+        row_plants = []
+
+        # Finding the coefficient a and b of the row line equation a*x + b = y
+        a = (bottom_center[1] - top_crossing_point[1]) / (bottom_center[0] - top_crossing_point[0])
+        b = bottom_center[1] - a * bottom_center[0]
+
+        # Distance between the bottom plant and its corresponding top crossing point
+        d = np.sqrt(np.square(top_crossing_point[0] - bottom_center[0])
+                    + np.square(top_crossing_point[1] - bottom_center[1]))
+
+        # Ratio between the inter-plant distance and the total distance d
+        t = ip / d
+
+        # Coordinates of the current plant (in other word while loop variable)
+        current_plant = bottom_center
+
+        # If 0 < t or t > 1 then it means that the next plant we want to add is outside the image.
+        while 0 <= t <= 1:
+            # Coordinates of the next plant on the row
+            next_plant_x = (1 - t) * current_plant[0] + t * top_crossing_point[0]
+            next_plant_y = (1 - t) * current_plant[1] + t * top_crossing_point[1]
+            next_plant = np.asarray([int(next_plant_x), int(next_plant_y)])
+
+            # Appending the next plant
+            row_plants.append(next_plant)
+
+            current_plant = next_plant
+
+            # Computing the new value of t
+            d = np.sqrt(np.square(top_crossing_point[0] - current_plant[0])
+                        + np.square(top_crossing_point[1] - current_plant[1]))
+            t = ip / d
+
+
+
+        return row_plants
 
     def are_coordinates_valid(self, x, y):
         """
         Returns a boolean indicating whether (x, y) is inside the image or not (valid position or not).
         """
-        if x < 0 or x > self.world.width:
-            return False
-
-        if y < 0 or y > self.world.height:
-            return False
-
-        return True
+        return not (x < 0 or x > self.world.width or y < 0 or y > self.world.height)
 
     def draw(self, plants, particles, n_particles):
         # Empty image
@@ -220,8 +268,10 @@ class Visualizer:
 
         offset = 250
         position = self.world.height - 40
-        ir = 70
+        ir = 110
         skew = np.pi / 34
         # skew = 0
+        convergence = 40 / ir
+        ip = 110
 
-        self.draw_complete_particle(offset, position, ir, skew, -1, -1)
+        self.draw_complete_particle(offset, position, ir, skew, convergence, ip)
