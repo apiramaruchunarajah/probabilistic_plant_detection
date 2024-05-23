@@ -59,13 +59,29 @@ class Visualizer:
         # Drawing of the particular particle using offset and position
         self.draw_particular_plant(offset, position)
 
-        # Drawing the horizontally neighboring plants to the particular plant
-        self.draw_horizontal_neighbors(offset, position, ir)
+        # Drawing the plants located at the bottom
+        bottom_plants = self.get_bottom_plants(offset, position, ir)
+
+        perspective_coef = position / self.world.height
+        color = (255, 0, 0)
+
+        for center in bottom_plants:
+            cv.drawMarker(self.img, center, color, markerType=cv.MARKER_DIAMOND,
+                          markerSize=int(40 * perspective_coef), thickness=4)
+
+        # Getting the coordinates of the top particular plant
+        top_particular_plant = self.get_top_crossing_point(offset, position, skew)
+
+        # Drawing the plants located at the top
 
     def draw_particular_plant(self, offset, position):
-        if not (self.is_valid_coordinates(offset, position)):
+        """
+        Draws the particular plant.
+        """
+        if not (self.are_coordinates_valid(offset, position)):
             print("Error: offset and/or position has an invalid value")
             return -1
+
         center = np.asarray([offset, position])
 
         perspective_coef = center[1] / self.world.height
@@ -74,43 +90,45 @@ class Visualizer:
         cv.drawMarker(self.img, center, color, markerType=cv.MARKER_DIAMOND,
                       markerSize=int(40 * perspective_coef), thickness=4)
 
-    def draw_horizontal_neighbors(self, offset, position, ir):
+    def get_bottom_plants(self, offset, position, ir):
         """
-        Draws the horizontal neighbours of the particular plant, in other words plants that are located to the left,
-        right and at the same height as the particular plant.
+        Returns the coordinates of the plants that are located in the bottom crop row, in other words the horizontal
+        neighbours of the particular plant.
         """
+        # List of coordinates to be returned
+        horizontal_neighbors = []
 
-        # Drawing parameters
-        perspective_coef = position / self.world.height
-        color = (255, 0, 0)
-
-        # Drawing left neighbors
+        # Appending the left neighbors of the particular plant
         leftOffset = offset - ir
-
-        while self.is_valid_coordinates(leftOffset, position):
+        while self.are_coordinates_valid(leftOffset, position):
             center = np.asarray([leftOffset, position])
-
-            cv.drawMarker(self.img, center, color, markerType=cv.MARKER_DIAMOND,
-                          markerSize=int(40 * perspective_coef), thickness=4)
-
+            horizontal_neighbors.append(center)
             leftOffset -= ir
 
-        # Drawing right neighbors
+        # Appending right neighbors of the particular plant
         rightOffset = offset + ir
-
-        while self.is_valid_coordinates(rightOffset, position):
+        while self.are_coordinates_valid(rightOffset, position):
             center = np.asarray([rightOffset, position])
-
-            cv.drawMarker(self.img, center, color, markerType=cv.MARKER_DIAMOND,
-                          markerSize=int(40 * perspective_coef), thickness=4)
-
+            horizontal_neighbors.append(center)
             rightOffset += ir
 
-    def draw_top_particular_plant(self, offset, position, skew):
-        return True
+        return horizontal_neighbors
 
+    def get_top_crossing_point(self, bottom_plant_x, bottom_plant_y, skew):
+        """
+        Returns the coordinates of the point located at the top of the image (height = 0) regarding the skew angle of
+        the crop rows and the coordinates of a plant located at the bottom.
+        """
+        x_coordinate = np.tan(skew) * bottom_plant_y + bottom_plant_x
+        center = np.asarray([int(x_coordinate), 0])
 
-    def is_valid_coordinates(self, x, y):
+        cv.line(self.img, (bottom_plant_x, bottom_plant_y), center, 255, 1)
+        # cv.line(self.img, (bottom_plant_x, bottom_plant_y), (250, 0), 255, 1)
+        # cv.line(self.img, (bottom_plant_x, bottom_plant_y), (500, bottom_plant_y), 255, 1)
+
+        return center
+
+    def are_coordinates_valid(self, x, y):
         """
         Returns a boolean indicating whether (x, y) is inside the image or not (valid position or not).
         """
@@ -131,10 +149,11 @@ class Visualizer:
         self.draw_particles(particles, n_particles)
 
         # Testing of the function draw_complete_particle
-        #self.img = np.zeros((self.world.height, self.world.width, 3), np.uint8)
+        self.img = np.zeros((self.world.height, self.world.width, 3), np.uint8)
 
         offset = 250
         position = self.world.height - 40
         ir = 70
+        skew = np.pi / 24
 
-        #self.draw_complete_particle(offset, position, ir, -1, -1, -1)
+        self.draw_complete_particle(offset, position, ir, skew, -1, -1)
