@@ -56,12 +56,13 @@ class Visualizer:
 
     def draw_complete_particle(self, offset, position, ir, skew, convergence, ip):
 
-        # Drawing of the particular particle using offset and position
+        # Drawing of the particular plant using offset and position
         self.draw_particular_plant(offset, position)
 
-        # Drawing the plants located at the bottom
-        bottom_plants = self.get_bottom_plants(offset, position, ir)
+        # Getting bottom plants coordinates and the number of right and left plants
+        bottom_plants, nb_left_plants, nb_right_plants = self.get_bottom_plants(offset, position, ir)
 
+        # Drawing the plants located at the bottom
         perspective_coef = position / self.world.height
         color = (255, 0, 0)
 
@@ -69,10 +70,18 @@ class Visualizer:
             cv.drawMarker(self.img, center, color, markerType=cv.MARKER_DIAMOND,
                           markerSize=int(40 * perspective_coef), thickness=4)
 
-        # Getting the coordinates of the top particular plant
-        top_particular_plant = self.get_top_crossing_point(offset, position, skew)
+        # Getting the crossing point between the row where the particular plant is and the top of the image.
+        top_particular_crossing_point = self.get_top_crossing_point(offset, position, skew)
 
-        # Drawing the plants located at the top
+        # Getting the crossing point for each row : point of intersection between a row and the top of the image.
+        ir_top = convergence * ir
+        top_crossing_points = self.get_top_plants(top_particular_crossing_point[0], top_particular_crossing_point[1],
+                                                  ir_top, nb_left_plants, nb_right_plants)
+
+        # Drawing all the remaining plants
+        for center in top_crossing_points:
+            cv.drawMarker(self.img, center, color, markerType=cv.MARKER_DIAMOND,
+                          markerSize=int(40 * perspective_coef), thickness=4)
 
     def draw_particular_plant(self, offset, position):
         """
@@ -93,40 +102,98 @@ class Visualizer:
     def get_bottom_plants(self, offset, position, ir):
         """
         Returns the coordinates of the plants that are located in the bottom crop row, in other words the horizontal
-        neighbours of the particular plant.
+        neighbours of the particular plant. Returns also the number of plants present to its left and the number of
+        plants present to its right.
+        The first nb_lefts_plants-1 coordinates of the returned list correspond to those of the left plants and the
+        remaining correspond to the coordinates of the right plants
         """
         # List of coordinates to be returned
         horizontal_neighbors = []
+
+        # Number of left and right neighbors
+        nb_left_neighbours = 0
+        nb_right_neighbours = 0
 
         # Appending the left neighbors of the particular plant
         leftOffset = offset - ir
         while self.are_coordinates_valid(leftOffset, position):
             center = np.asarray([leftOffset, position])
             horizontal_neighbors.append(center)
+            nb_left_neighbours += 1
             leftOffset -= ir
+
+        # Appending the particular plant
+        center = np.asarray([offset, position])
+        horizontal_neighbors.append(center)
 
         # Appending right neighbors of the particular plant
         rightOffset = offset + ir
         while self.are_coordinates_valid(rightOffset, position):
             center = np.asarray([rightOffset, position])
             horizontal_neighbors.append(center)
+            nb_right_neighbours += 1
             rightOffset += ir
 
-        return horizontal_neighbors
+        return (horizontal_neighbors, nb_left_neighbours, nb_right_neighbours)
 
     def get_top_crossing_point(self, bottom_plant_x, bottom_plant_y, skew):
         """
         Returns the coordinates of the point located at the top of the image (height = 0) regarding the skew angle of
         the crop rows and the coordinates of a plant located at the bottom.
         """
+        # Use of the TOA formula
         x_coordinate = np.tan(skew) * bottom_plant_y + bottom_plant_x
         center = np.asarray([int(x_coordinate), 0])
 
-        cv.line(self.img, (bottom_plant_x, bottom_plant_y), center, 255, 1)
+        # cv.line(self.img, (bottom_plant_x, bottom_plant_y), center, 255, 1)
         # cv.line(self.img, (bottom_plant_x, bottom_plant_y), (250, 0), 255, 1)
         # cv.line(self.img, (bottom_plant_x, bottom_plant_y), (500, bottom_plant_y), 255, 1)
 
         return center
+
+    def get_top_plants(self, top_offset, top_position, ir_at_top, nb_left_neighbors, nb_right_neighbors):
+        """
+        Returns the coordinates of the plants that are located in the top crop row.
+
+        Remarque : we purposefully don't check if the coordinates are valid coordinates (valid in the sense in
+        the image).
+        """
+        # List of coordinates to be returned
+        horizontal_neighbors = []
+
+        # Number of plants that have been treated (in other word, while loop variable)
+        nb_plants_treated = 0
+
+        # Appending the left plants
+        left_plant_x = top_offset
+        while nb_plants_treated < nb_left_neighbors:
+            left_plant_x -= ir_at_top
+            center = np.asarray([left_plant_x, top_position])
+            horizontal_neighbors.append(center)
+            nb_plants_treated += 1
+
+        # Appending the top particular plant
+        center = np.asarray([top_offset, top_position])
+        horizontal_neighbors.append(center)
+        nb_plants_treated += 1
+
+        # Appending the right plants
+        right_plant_x = top_offset
+        while nb_plants_treated < (nb_left_neighbors + nb_right_neighbors + 1):
+            right_plant_x += ir_at_top
+            center = np.asarray([right_plant_x, top_position])
+            horizontal_neighbors.append(center)
+            nb_plants_treated += 1
+
+        return horizontal_neighbors
+
+    def get_row_plants(self):
+        """
+        Takes a plant at the bottom of the image and its row's crossing point with the top of the image.
+        Returns the coordinates of all the plants located in that row and that are within the image.
+        """
+
+        return True
 
     def are_coordinates_valid(self, x, y):
         """
@@ -154,6 +221,7 @@ class Visualizer:
         offset = 250
         position = self.world.height - 40
         ir = 70
-        skew = np.pi / 24
+        skew = np.pi / 34
+        # skew = 0
 
         self.draw_complete_particle(offset, position, ir, skew, -1, -1)
