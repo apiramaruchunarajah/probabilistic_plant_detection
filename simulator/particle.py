@@ -62,7 +62,7 @@ class Particle:
 
         return center
 
-    def get_all_top_crossing_points(self, top_offset, top_position, nb_left_neighbors, nb_right_neighbors):
+    def get_all_top_crossing_points(self, nb_left_neighbors, nb_right_neighbors):
         """
         Returns the coordinates of the positions where the rows cross with the top of the image by using the
         convergence.
@@ -78,6 +78,11 @@ class Particle:
 
         # Inter-row at the top of the image
         ir_at_top = int(self.convergence * self.ir_at_bottom)
+
+        # Getting the crossing point between the row where the particular plant is and the top of the image.
+        top_particular_crossing_point = self.get_particular_plant_top_crossing_point()
+        top_offset = top_particular_crossing_point[0]
+        top_position = top_particular_crossing_point[1]
 
         # Appending the left plants
         left_plant_x = top_offset
@@ -123,7 +128,7 @@ class Particle:
 
         return vanishing_point
 
-    def get_inter_plant(self, y, vanishing_point):
+    def get_inter_plant_distance(self, y, vanishing_point):
         """
         As in the image perspective the rows are crossing and not parallel, the inter-plant distance is not constant on
         the y axe.
@@ -136,10 +141,9 @@ class Particle:
 
     def get_row_plants(self, bottom_plant, vanishing_point):
         """
-        Takes a plant at the bottom of the image and its row's crossing point with the top of the image.
-        Returns the coordinates of all the plants located in that row and that are within the image. To do so, the algo-
+        Returns the coordinates of all the plants located in a row and that are within the image. To do so, the algo-
         rithm starts at the bottom plant and adds a plant on the line using the inter-plant distance, then starts again
-        using this plant as starting point. It ends when we are at the end of the line.
+        using this plant as starting point. It ends when we are at the end of the image.
         """
         # List of plants located in the row
         row_plants = []
@@ -171,7 +175,7 @@ class Particle:
                         + np.square(vanishing_point[1] - current_plant[1]))
 
             # The new inter-plant distance
-            ip = self.get_inter_plant(current_plant[1], vanishing_point)
+            ip = self.get_inter_plant_distance(current_plant[1], vanishing_point)
             t = ip / d
 
         return row_plants
@@ -207,3 +211,46 @@ class Particle:
             current_plant = np.asarray([int(next_plant_x), int(next_plant_y)])
 
         return row_plants
+
+    def get_all_plants(self):
+        """
+        Returns a list containing the coordinates of all the plants that the image created by the particle contains
+        regarding its field parameters.
+        """
+        # List of all plants coordinates
+        plants = []
+
+        # Getting bottom plants coordinates and the number of right and left plants
+        bottom_plants, nb_left_plants, nb_right_plants = self.get_bottom_plants()
+
+        # Appending bottom plants
+        plants.extend(bottom_plants)
+
+        # Getting the crossing point for each row : point of intersection between a row and the top of the image.
+        top_crossing_points = self.get_all_top_crossing_points(nb_left_plants, nb_right_plants)
+
+        if len(bottom_plants) != len(top_crossing_points):
+            print("Error: number of bottom plants and number of top crossing points are not equal.")
+            return -1
+
+        # Getting the vanishing point
+        # We could take any two plants to compute the vanishing point, here plant 0 and 1
+        if len(bottom_plants) < 2:
+            print("Can not compute the vanishing point.")
+            return -1
+
+        vanishing_point = self.get_vanishing_point(bottom_plants[0], top_crossing_points[0],
+                                                   bottom_plants[1], top_crossing_points[1])
+
+        # Getting all the remaining plants row by row.
+        # For each row
+        for i in range(len(bottom_plants)):
+            bottom_plant = bottom_plants[i]
+
+            # Getting the coordinates of the plants located in the row
+            row_plants = self.get_row_plants(bottom_plant, vanishing_point)
+
+            # Appending the plants located in the row
+            plants.extend(row_plants)
+
+        return plants
