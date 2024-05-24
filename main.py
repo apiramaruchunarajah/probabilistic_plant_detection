@@ -20,6 +20,7 @@ if __name__ == '__main__':
 
     # Number of simulated time steps
     n_time_steps = 30+40
+    n_time_steps = 1
 
     # Initialize visualizer
     visualizer = Visualizer(world)
@@ -40,7 +41,7 @@ if __name__ == '__main__':
     true_plants_meas_noise_position_std = 7
 
     # Initialize plants
-    plants = Plants(world, -500, 250, 80, 110, o=0, s=0, c=0, nb_rows=7, nb_plant_types=4)
+    plants = Plants(world, -100, 250, 80, 110, o=0, s=0, c=0, nb_rows=7, nb_plant_types=4)
     plants.setStandardDeviations(true_plants_motion_move_distance_std, true_plants_meas_noise_position_std)
     plants.generate_plants()
 
@@ -81,6 +82,7 @@ if __name__ == '__main__':
     ##
     max_weights = []
     for i in range(n_time_steps):
+
 
         # Simulate plants motion (required motion will not excatly be achieved)
         plants.move(plants_setpoint_motion_move_distance)
