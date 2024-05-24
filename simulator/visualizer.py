@@ -56,8 +56,9 @@ class Visualizer:
 
     def draw_complete_particle(self, offset, position, ir, skew, convergence, ip):
 
-        # Drawing of the particular plant using offset and position
-        self.draw_particular_plant(offset, position)
+        if not (self.are_coordinates_valid(offset, position)):
+            print("Error: offset and/or position has an invalid value")
+            return -1
 
         # Getting bottom plants coordinates and the number of right and left plants
         bottom_plants, nb_left_plants, nb_right_plants = self.get_bottom_plants(offset, position, ir)
@@ -100,32 +101,15 @@ class Visualizer:
         # For each row
         for i in range(len(bottom_plants)):
             bottom_plant = bottom_plants[i]
-            top_crossing_point = top_crossing_points[i]
 
             # Getting the coordinates of the plants located in the row
-            row_plants = self.get_row_plants(bottom_plant, top_crossing_point, ip)
+            row_plants = self.get_row_plants(bottom_plant, vanishing_point, ip)
 
             # Drawing all the plants located in the row
             for center in row_plants:
                 perspective_coef = center[1] / self.world.height
                 cv.drawMarker(self.img, center, color, markerType=markerType,
                               markerSize=int(40 * perspective_coef), thickness=4)
-
-    def draw_particular_plant(self, offset, position):
-        """
-        Draws the particular plant.
-        """
-        if not (self.are_coordinates_valid(offset, position)):
-            print("Error: offset and/or position has an invalid value")
-            return -1
-
-        center = np.asarray([offset, position])
-
-        perspective_coef = center[1] / self.world.height
-        color = (0, 255, 0)
-
-        cv.drawMarker(self.img, center, color, markerType=cv.MARKER_STAR,
-                      markerSize=int(40 * perspective_coef), thickness=4)
 
     def get_bottom_plants(self, offset, position, ir):
         """
@@ -247,24 +231,22 @@ class Visualizer:
 
         return ip
 
-    def get_row_plants(self, bottom_plant, top_crossing_point, ip):
+    def get_row_plants(self, bottom_plant, vanishing_point, ip_at_bottom):
         """
         Takes a plant at the bottom of the image and its row's crossing point with the top of the image.
         Returns the coordinates of all the plants located in that row and that are within the image. To do so, the algo-
         rithm starts at the bottom plant and adds a plant on the line using the inter-plant distance, then starts again
         using this plant as starting point. It ends when we are at the end of the line.
-
-        TODO: take into account ip(y) and not ip !
         """
         # List of plants located in the row
         row_plants = []
 
-        # Distance between the bottom plant and its corresponding top crossing point
-        d = np.sqrt(np.square(top_crossing_point[0] - bottom_plant[0])
-                    + np.square(top_crossing_point[1] - bottom_plant[1]))
+        # Distance between the bottom plant and the vanishing point
+        d = np.sqrt(np.square(vanishing_point[0] - bottom_plant[0])
+                    + np.square(vanishing_point[1] - bottom_plant[1]))
 
         # Ratio between the inter-plant distance and the total distance d
-        t = ip / d
+        t = ip_at_bottom / d
 
         # Coordinates of the current plant (in other word while loop variable)
         current_plant = bottom_plant
@@ -272,8 +254,8 @@ class Visualizer:
         # If 0 < t or t > 1 then it means that the next plant we want to add is outside the image.
         while 0 <= t <= 1:
             # Coordinates of the next plant on the row
-            next_plant_x = (1 - t) * current_plant[0] + t * top_crossing_point[0]
-            next_plant_y = (1 - t) * current_plant[1] + t * top_crossing_point[1]
+            next_plant_x = (1 - t) * current_plant[0] + t * vanishing_point[0]
+            next_plant_y = (1 - t) * current_plant[1] + t * vanishing_point[1]
             next_plant = np.asarray([int(next_plant_x), int(next_plant_y)])
 
             # Appending the next plant
@@ -282,8 +264,11 @@ class Visualizer:
             current_plant = next_plant
 
             # Computing the new value of t
-            d = np.sqrt(np.square(top_crossing_point[0] - current_plant[0])
-                        + np.square(top_crossing_point[1] - current_plant[1]))
+            d = np.sqrt(np.square(vanishing_point[0] - current_plant[0])
+                        + np.square(vanishing_point[1] - current_plant[1]))
+
+            # The new inter-plant distance
+            ip = self.get_inter_plant(current_plant[1], ip_at_bottom, vanishing_point)
             t = ip / d
 
         return row_plants
@@ -343,6 +328,6 @@ class Visualizer:
         skew = np.pi / 34
         # skew = 0
         convergence = 60 / ir
-        ip = 170
+        ip = 70
 
         self.draw_complete_particle(offset, position, ir, skew, convergence, ip)
