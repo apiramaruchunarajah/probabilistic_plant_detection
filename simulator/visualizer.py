@@ -140,8 +140,8 @@ class Visualizer:
         offset = 240
         position = self.world.height - 40
         ir = 110  # Problematic when go to a low ir (~40 for example)
-        skew = np.pi / 34
-        convergence = 0.40
+        skew = -np.pi / 34
+        convergence = 0.04
         ip = 110
 
         particle = Particle(self.world, offset, position, ir, ip, convergence, skew)
