@@ -8,4 +8,4 @@ class World:
         """
         Returns a boolean indicating whether (x, y) is inside the world/image or not (valid position or not).
         """
-        return not (x < 0 or x > self.width or y < 0 or y > self.height)
+        return not (x < 0 or x >= self.width or y < 0 or y >= self.height)
