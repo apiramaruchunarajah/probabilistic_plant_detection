@@ -53,11 +53,12 @@ class Particle:
 
     def get_particular_plant_top_crossing_point(self):
         """
-        Returns the coordinates of the crossing point between the row where the particular plant belongs to and the top
+        Returns the coordinates of the crossing point between the row where the particular plant is and the top
         of the image.
         """
-        # Use of the TOA formula
-        x_coordinate = np.tan(self.skew) * self.position + self.offset
+        # Use of the tan = opposé / adjacent formula
+        x_coordinate = np.tan(self.skew) * self.position
+        x_coordinate += self.offset
         center = np.asarray([int(x_coordinate), 0])
 
         return center
@@ -73,7 +74,7 @@ class Particle:
         # List of coordinates to be returned
         horizontal_neighbors = []
 
-        # Number of plants that have been treated (in other word, while loop variable)
+        # Number of plants that have been treated (while loop variable)
         nb_plants_treated = 0
 
         # Inter-row at the top of the image
@@ -130,8 +131,8 @@ class Particle:
 
     def get_inter_plant_distance(self, y, vanishing_point):
         """
-        As in the image perspective the rows are crossing and not parallel, the inter-plant distance is not constant on
-        the y axe.
+        As, in the image perspective, the rows are crossing and not parallel, the inter-plant distance is not constant
+        on the y axe.
         Takes a vertical position and the coordinates of the vanishing point.
         Returns the inter-plant distance at this position.
         """
@@ -176,16 +177,15 @@ class Particle:
             current_plant = next_plant
 
             # Computing the new value of t
-            print("Current plant : {}".format(current_plant))
-            print("Vanishing point : {}".format(vanishing_point))
-            print("t : {}".format(t))
+            # print("Current plant : {}".format(current_plant))
+            # print("Vanishing point : {}".format(vanishing_point))
+            # print("t : {}".format(t))
             d = np.sqrt(np.square(vanishing_point[0] - current_plant[0])
                         + np.square(vanishing_point[1] - current_plant[1]))
 
             # The new inter-plant distance
             ip = self.get_inter_plant_distance(current_plant[1], vanishing_point)
             t = ip / d
-            print(ip)
 
         return row_plants
 
@@ -232,12 +232,16 @@ class Particle:
 
         # Getting bottom plants coordinates and the number of right and left plants
         bottom_plants, nb_left_plants, nb_right_plants = self.get_bottom_plants()
+        print("Bottom plants : {}".format(bottom_plants))
 
         # Appending bottom plants
         plants.extend(bottom_plants)
 
         # Getting the crossing point for each row : point of intersection between a row and the top of the image.
+        # TODO: only two points of top_crossing_points are used to find the vanishing point, maybe we don't need the
+        #  method get_all_top_crossing_points.
         top_crossing_points = self.get_all_top_crossing_points(nb_left_plants, nb_right_plants)
+        print("Top crossing points : {}".format(top_crossing_points))
 
         if len(bottom_plants) != len(top_crossing_points):
             print("Error: number of bottom plants and number of top crossing points are not equal.")
@@ -262,5 +266,6 @@ class Particle:
 
             # Appending the plants located in the row
             plants.extend(row_plants)
+            print("Row {} plants : {}".format(i, row_plants))
 
         return plants
