@@ -135,7 +135,7 @@ class Particle:
         Takes a vertical position and the coordinates of the vanishing point.
         Returns the inter-plant distance at this position.
         """
-        ip = self.ip_at_bottom * (vanishing_point[1] - self.world.height) / (vanishing_point[1] - y)
+        ip = self.ip_at_bottom * (vanishing_point[1] - y) / (vanishing_point[1] - self.world.height)
 
         return ip
 
@@ -148,18 +148,23 @@ class Particle:
         # List of plants located in the row
         row_plants = []
 
-        # Distance between the bottom plant and the vanishing point
+        # Distance between the bottom plant of the row and the vanishing point
         d = np.sqrt(np.square(vanishing_point[0] - bottom_plant[0])
                     + np.square(vanishing_point[1] - bottom_plant[1]))
 
-        # Ratio between the inter-plant distance and the total distance d
-        t = self.ip_at_bottom / d
+        # Ratio between the inter-plant distance at the bottom plant and the total distance d
+        ip = self.get_inter_plant_distance(bottom_plant[1], vanishing_point)
+        t = ip / d
 
         # Coordinates of the current plant (in other word while loop variable)
         current_plant = bottom_plant
 
+        # If the inter-plant becomes too small then it means we are very close to the top of the image, so we define the
+        # minimal inter-plant distance at which we draw the plants.
+        min_ip = 4
+
         # If 0 < t or t > 1 then it means that the next plant we want to add is outside the image.
-        while 0 <= t <= 1:
+        while 0 <= t <= 1 and ip >= min_ip:
             # Coordinates of the next plant on the row
             next_plant_x = (1 - t) * current_plant[0] + t * vanishing_point[0]
             next_plant_y = (1 - t) * current_plant[1] + t * vanishing_point[1]
@@ -171,16 +176,20 @@ class Particle:
             current_plant = next_plant
 
             # Computing the new value of t
+            print("Current plant : {}".format(current_plant))
+            print("Vanishing point : {}".format(vanishing_point))
+            print("t : {}".format(t))
             d = np.sqrt(np.square(vanishing_point[0] - current_plant[0])
                         + np.square(vanishing_point[1] - current_plant[1]))
 
             # The new inter-plant distance
             ip = self.get_inter_plant_distance(current_plant[1], vanishing_point)
             t = ip / d
+            print(ip)
 
         return row_plants
 
-    def get_row_plants_2(self, bottom_plant, top_crossing_point):
+    def get_row_plants2(self, bottom_plant, vanishing_point):
         """
         Other way of finding all the plants of a row but it doesn't work as it.
         """
@@ -188,17 +197,18 @@ class Particle:
         row_plants = []
 
         # Finding the coefficient a and b of the row line equation a*x + b = y
-        a = (bottom_plant[1] - top_crossing_point[1]) / (bottom_plant[0] - top_crossing_point[0])
+        a = (bottom_plant[1] - vanishing_point[1]) / (bottom_plant[0] - vanishing_point[0])
         b = bottom_plant[1] - a * bottom_plant[0]
 
         # Normalized direction vector
         direction_vector = (1 / np.sqrt(1 + np.square(a)), a / np.sqrt(1 + np.square(a)))
 
-        # Scaled direction vector
-        direction_vector = (direction_vector[0] * self.ip_at_bottom, direction_vector[1] * self.ip_at_bottom)
-
         # Finding the coordinates of all the plants in the row starting from the bottom plant
         current_plant = bottom_plant
+
+        # Scaled direction vector
+        ip = self.get_inter_plant_distance(current_plant[1], vanishing_point)
+        direction_vector = (direction_vector[0] * ip, direction_vector[1] * ip)
 
         while self.world.are_coordinates_valid(current_plant[0], current_plant[1]):
             # Appending the current plant
