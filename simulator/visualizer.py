@@ -132,10 +132,10 @@ class Visualizer:
 
         # Draw plants and particles
         self.draw_plants(plants)
-        self.draw_particles(particles, n_particles)
+        #self.draw_particles(particles, n_particles)
 
         # Testing of the function draw_complete_particle
-        self.img = np.zeros((self.world.height, self.world.width, 1), np.uint8)
+        #self.img = np.zeros((self.world.height, self.world.width, 1), np.uint8)
 
         offset = 240
         position = self.world.height - 40
@@ -146,4 +146,19 @@ class Visualizer:
 
         particle = Particle(self.world, offset, position, ir, ip, convergence, skew)
 
-        self.draw_complete_particle(particle)
+        #self.draw_complete_particle(particle)
+
+    def measure(self):
+        """
+        Looks at its image and returns the parameters offset, position, convergence, ....
+        """
+        self.get_particular_plant()
+        return True
+
+    def get_particular_plant(self):
+        green_pixels = self.get_green_pixels()
+        print("Green pixels : {}".format(len(green_pixels)))
+        return True
+
+    def get_green_pixels(self):
+        return np.where(self.img != 0)
