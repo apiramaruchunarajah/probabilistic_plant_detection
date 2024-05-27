@@ -4,17 +4,19 @@ import cv2 as cv
 
 # Weeds needs to be added
 class Plants:
-    def __init__(self, world, vp_height, vp_width, ir, ip, o, s, c, nb_rows, nb_plant_types):
+    def __init__(self, world, vp_height, vp_width, ir, ip, o, nb_rows, nb_plant_types):
         # Initialize plants positions
         # World contains the width and height of the image
         self.world = world
 
         # Parameters to generate image and to be tracked
+        # As we directly give the coordinates of the vanishing point, we don't need the parameters skew or convergence.
         self.inter_row_distance = ir
         self.inter_plant_distance = ip
-        self.offset = o  # between -(width/2) and +(width/2)
-        self.skew = s  # TODO
-        self.convergence = c  # TODO
+        self.offset = o
+        # Offset is between -(width/2) and +(width/2), it doesn't correspond to the definition of offset used to create
+        # a particle (which in that case goes from 0 to width and just corresponds to the x coordinate of the particular
+        # plant).
 
         # Field parameters
         self.vp_height = vp_height
@@ -49,7 +51,8 @@ class Plants:
             img = np.zeros((self.world.height, self.world.width), np.uint8)
 
             # Get position of lines crossing in the vanishing point
-            cv.line(img, (i * self.inter_row_distance + self.offset, self.world.height), self.vanishing_point, 255, 1)
+            cv.line(img, (i * self.inter_row_distance + self.offset, self.world.height), self.vanishing_point,
+                    255, 1)
             coordinates = np.where(img != 0)
             row_coordinates = np.array(list(zip(coordinates[1], coordinates[0])))
             self.plants_rows.append(row_coordinates)
