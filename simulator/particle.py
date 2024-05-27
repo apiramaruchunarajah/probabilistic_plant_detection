@@ -142,9 +142,9 @@ class Particle:
 
     def get_row_plants(self, bottom_plant, vanishing_point):
         """
-        Returns the coordinates of all the plants located in a row and that are within the image. To do so, the algo-
-        rithm starts at the bottom plant and adds a plant on the line using the inter-plant distance, then starts again
-        using this plant as starting point. It ends when we are at the end of the image.
+        Returns the coordinates of all the plants located in a row and that are within the image. To do so,
+        the algorithm starts at the bottom plant and adds a plant on the line using the inter-plant distance,
+        then starts again using this plant as starting point. It ends when we are at the end of the image.
         """
         # List of plants located in the row
         row_plants = []
@@ -191,14 +191,14 @@ class Particle:
 
     def get_row_plants2(self, bottom_plant, vanishing_point):
         """
-        Other way of finding all the plants of a row but it doesn't work as it.
+        Other way of finding all the plants of a row, but it doesn't work as it.
         """
         # List of plants located in the row
         row_plants = []
 
         # Finding the coefficient a and b of the row line equation a*x + b = y
         a = (bottom_plant[1] - vanishing_point[1]) / (bottom_plant[0] - vanishing_point[0])
-        b = bottom_plant[1] - a * bottom_plant[0]
+        # b = bottom_plant[1] - a * bottom_plant[0]
 
         # Normalized direction vector
         direction_vector = (1 / np.sqrt(1 + np.square(a)), a / np.sqrt(1 + np.square(a)))
