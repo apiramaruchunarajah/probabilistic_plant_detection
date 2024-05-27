@@ -61,13 +61,70 @@ class Visualizer:
         # Getting the coordinates of every plant to draw
         plants = particle.get_all_plants()
 
-        # Drawing all the plants
-        for center in plants:
-            perspective_coef = center[1] / self.world.height
-            color = (255, 255, 255)
+        # Method using loi normale centrée réduite et évaluée sur la distance
+        # # Draw all the plants
+        # for plant in plants:
+        #     # Draw an heat map around the plant position
+        #     for x in range(int(plant[0] - width/2), int(plant[0] + width/2)):
+        #         for y in range(int(plant[1] - height/2), int(plant[1] + height/2)):
+        #
+        #             if self.world.are_coordinates_valid(x, y):
+        #                 # Distance between (x, y) and the plant position
+        #                 distance = np.sqrt(np.square(x - plant[0]) + np.square(y - plant[1]))
+        #
+        #                 # Use of the normal law (centrée réduite)
+        #                 pr = (1 / np.sqrt(2 * np.pi)) * np.exp(- np.square(distance) / 2)
+        #
+        #                 # Matching of the intensity of the (x, y) pixel according to the above probability
+        #                 intensity = max_intensity * pr
+        #                 s += pr
+        #
+        #                 if pr > 0.7:
+        #                     print("pr, intensity : {}, {}".format(pr, intensity))
+        #
+        #                 self.img[y][x] = intensity
 
-            cv.drawMarker(self.img, center, color, markerType=cv.MARKER_TRIANGLE_UP,
-                          markerSize=int(40 * perspective_coef), thickness=4)
+        # Radius of the square surrounding the central plant position pixel
+        radius = 40
+
+        # Different grey levels representing pixels around a plant position
+        min_intensity = 40
+        max_intensity = 255
+        intensities = np.arange(min_intensity, max_intensity, int((max_intensity - min_intensity) / radius))
+        nb_intensities = len(intensities)
+
+        # # Drawing all the plants
+        # for center in plants:
+        #     # Perspective coefficient, further a plant is, smaller it is
+        #     perspective_coef = center[1] / self.world.height
+        #
+        #     if self.world.are_coordinates_valid(center[0], center[1]):
+        #         # Drawing the center with full intensity
+        #         self.img[center[1]][center[0]] = max_intensity
+        #
+        #         # Square represents the different "square pixels" surrounding the plant pixel
+        #         for square in range(1, radius):
+        #             # Drawing the top line pixels
+        #             y = center[1] - square
+        #             for x in range(center[0] - radius, center[0] + radius):
+        #                 if self.world.are_coordinates_valid(x, y):
+        #                     self.img[y][x] = intensities[nb_intensities - square]
+        #
+        #             # Drawing the bottom line pixels
+        #             y = center[1] + square
+        #             for x in range(center[0] - radius, center[0] + radius):
+        #                 if self.world.are_coordinates_valid(x, y):
+        #                     self.img[y][x] = intensities[nb_intensities - square]
+        #
+        #             # Drawing the middle line pixels
+        #             y = center[1]
+
+        for center in plants:
+            # Drawing parameters
+            intensity = 255
+            radius = 6
+
+            cv.circle(self.img, center, radius, intensity, -1)
 
     def draw(self, plants, particles, n_particles):
         # Empty image
@@ -78,7 +135,7 @@ class Visualizer:
         self.draw_particles(particles, n_particles)
 
         # Testing of the function draw_complete_particle
-        # self.img = np.zeros((self.world.height, self.world.width, 3), np.uint8)
+        self.img = np.zeros((self.world.height, self.world.width, 1), np.uint8)
 
         offset = 240
         position = self.world.height - 40
@@ -90,4 +147,4 @@ class Visualizer:
 
         particle = Particle(self.world, offset, position, ir, ip, convergence, skew)
 
-        # self.draw_complete_particle(particle)
+        self.draw_complete_particle(particle)
