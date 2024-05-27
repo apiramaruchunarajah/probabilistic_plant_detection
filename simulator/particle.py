@@ -232,7 +232,6 @@ class Particle:
 
         # Getting bottom plants coordinates and the number of right and left plants
         bottom_plants, nb_left_plants, nb_right_plants = self.get_bottom_plants()
-        print("Bottom plants : {}".format(bottom_plants))
 
         # Appending bottom plants
         plants.extend(bottom_plants)
@@ -241,7 +240,6 @@ class Particle:
         # TODO: only two points of top_crossing_points are used to find the vanishing point, maybe we don't need the
         #  method get_all_top_crossing_points.
         top_crossing_points = self.get_all_top_crossing_points(nb_left_plants, nb_right_plants)
-        print("Top crossing points : {}".format(top_crossing_points))
 
         if len(bottom_plants) != len(top_crossing_points):
             print("Error: number of bottom plants and number of top crossing points are not equal.")
@@ -266,6 +264,5 @@ class Particle:
 
             # Appending the plants located in the row
             plants.extend(row_plants)
-            print("Row {} plants : {}".format(i, row_plants))
 
         return plants
