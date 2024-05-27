@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import cv2 as cv
 
-import matplotlib.pyplot as plt
 import numpy as np
 
 # Simulation + plotting requires a robot, visualizer and world
@@ -19,8 +18,8 @@ if __name__ == '__main__':
     world = World(500, 700, 10)
 
     # Number of simulated time steps
-    n_time_steps = 30+40
-    n_time_steps = 1
+    n_time_steps = 30 + 40
+    # n_time_steps = 1
 
     # Initialize visualizer
     visualizer = Visualizer(world)
@@ -41,7 +40,7 @@ if __name__ == '__main__':
     true_plants_meas_noise_position_std = 7
 
     # Initialize plants
-    plants = Plants(world, -100, 250, 80, 110, o=0, s=0, c=0, nb_rows=7, nb_plant_types=4)
+    plants = Plants(world, -100, 250, 80, 110, o=0, nb_rows=7, nb_plant_types=4)
     plants.setStandardDeviations(true_plants_motion_move_distance_std, true_plants_meas_noise_position_std)
     plants.generate_plants()
 
@@ -63,7 +62,7 @@ if __name__ == '__main__':
     measurement_noise = [meas_model_position_std]
 
     # Set resampling algorithm used
-    # TODO: compare with the other reampling algorithms
+    # TODO: compare with the other resampling algorithms
     algorithm = ResamplingAlgorithms.STRATIFIED
 
     # Initialize SIR particle filter: resample every time step
@@ -82,13 +81,12 @@ if __name__ == '__main__':
     ##
     max_weights = []
     for i in range(n_time_steps):
-
-
-        # Simulate plants motion (required motion will not excatly be achieved)
+        # Simulate plants motion (required motion will not exactly be achieved)
         plants.move(plants_setpoint_motion_move_distance)
 
         # Simulate measurement
         meas_position = plants.measure()
+        visualizer.measure()
 
         # Update SIR particle filter
         particle_filter_sir.update(plants_setpoint_motion_move_distance, meas_position)
@@ -97,7 +95,7 @@ if __name__ == '__main__':
         w_max = particle_filter_sir.get_max_weight()
         max_weights.append(w_max)
         # Distance between the measured value and the average particle value
-        correctness = np.sqrt(np.square(particle_filter_sir.get_average_state()-meas_position))
+        correctness = np.sqrt(np.square(particle_filter_sir.get_average_state() - meas_position))
         print("Time step {}: max weight: {}, correctness: {}".format(i, w_max, correctness))
 
         # Visualization
@@ -106,7 +104,7 @@ if __name__ == '__main__':
         cv.waitKey(0)
 
     # Print Degeneracy problem
-    ## Plot weights as function of time step
+    # Plot weights as function of time step
     #fontSize = 14
     #plt.rcParams.update({'font.size': fontSize})
     #plt.plot(range(n_time_steps), max_weights, 'k')
