@@ -1,7 +1,7 @@
 import numpy as np
 import cv2 as cv
 
-from .world import World
+from .particle import Particle
 
 
 # Visualizer draws plants and particles
@@ -33,34 +33,117 @@ class Visualizer:
                         cv.drawMarker(self.img, center, (255, 255, 255), markerType=cv.MARKER_STAR,
                                       markerSize=int(50 * perspective_coef), thickness=5)
 
-    def draw_particles(self, particle_filter):
-        for i in range(particle_filter.n_particles):
+    def draw_particles(self, particles, n):
+        for i in range(n):
             # Coordinates of the particle
-            center = np.asarray([int(self.world.width/2), int(particle_filter.particles[i][1][0])])
+            center = np.asarray([int(self.world.width / 2), int(particles[i][1][0])])
 
             perspective_coef = center[1] / self.world.height
 
             # Color of the particle in fonction of the its weight
-            if particle_filter.particles[i][0] > 0.70:
+            if particles[i][0] > 0.70:
                 color = (0, 0, 255)
                 thickness = 5
-            elif particle_filter.particles[i][0] > 0.30:
+            elif particles[i][0] > 0.30:
                 color = (255, 0, 0)
                 thickness = 4
             else:
                 color = (0, 255, 0)
                 thickness = 2
 
+            # We consider now binary images
+            color = (255, 255, 255)
             cv.drawMarker(self.img, center, color, markerType=cv.MARKER_DIAMOND,
-                          markerSize=int((7*thickness) * perspective_coef), thickness=thickness)
+                          markerSize=int((7 * thickness) * perspective_coef), thickness=thickness)
 
-    def draw(self, plants, particle_filter):
+    def draw_complete_particle(self, particle):
+
+        # Getting the coordinates of every plant to draw
+        plants = particle.get_all_plants()
+
+        # Method using loi normale centrée réduite et évaluée sur la distance
+        # # Draw all the plants
+        # for plant in plants:
+        #     # Draw an heat map around the plant position
+        #     for x in range(int(plant[0] - width/2), int(plant[0] + width/2)):
+        #         for y in range(int(plant[1] - height/2), int(plant[1] + height/2)):
+        #
+        #             if self.world.are_coordinates_valid(x, y):
+        #                 # Distance between (x, y) and the plant position
+        #                 distance = np.sqrt(np.square(x - plant[0]) + np.square(y - plant[1]))
+        #
+        #                 # Use of the normal law (centrée réduite)
+        #                 pr = (1 / np.sqrt(2 * np.pi)) * np.exp(- np.square(distance) / 2)
+        #
+        #                 # Matching of the intensity of the (x, y) pixel according to the above probability
+        #                 intensity = max_intensity * pr
+        #                 s += pr
+        #
+        #                 if pr > 0.7:
+        #                     print("pr, intensity : {}, {}".format(pr, intensity))
+        #
+        #                 self.img[y][x] = intensity
+
+        # Radius of the square surrounding the central plant position pixel
+        radius = 40
+
+        # Different grey levels representing pixels around a plant position
+        min_intensity = 40
+        max_intensity = 255
+        intensities = np.arange(min_intensity, max_intensity, int((max_intensity - min_intensity) / radius))
+        nb_intensities = len(intensities)
+
+        # # Drawing all the plants
+        # for center in plants:
+        #     # Perspective coefficient, further a plant is, smaller it is
+        #     perspective_coef = center[1] / self.world.height
+        #
+        #     if self.world.are_coordinates_valid(center[0], center[1]):
+        #         # Drawing the center with full intensity
+        #         self.img[center[1]][center[0]] = max_intensity
+        #
+        #         # Square represents the different "square pixels" surrounding the plant pixel
+        #         for square in range(1, radius):
+        #             # Drawing the top line pixels
+        #             y = center[1] - square
+        #             for x in range(center[0] - radius, center[0] + radius):
+        #                 if self.world.are_coordinates_valid(x, y):
+        #                     self.img[y][x] = intensities[nb_intensities - square]
+        #
+        #             # Drawing the bottom line pixels
+        #             y = center[1] + square
+        #             for x in range(center[0] - radius, center[0] + radius):
+        #                 if self.world.are_coordinates_valid(x, y):
+        #                     self.img[y][x] = intensities[nb_intensities - square]
+        #
+        #             # Drawing the middle line pixels
+        #             y = center[1]
+
+        for center in plants:
+            # Drawing parameters
+            intensity = 255
+            radius = 6
+
+            cv.circle(self.img, center, radius, intensity, -1)
+
+    def draw(self, plants, particles, n_particles):
         # Empty image
-        self.img = np.zeros((self.world.height, self.world.width, 3), np.uint8)
+        self.img = np.zeros((self.world.height, self.world.width), np.uint8)
 
         # Draw plants and particles
         self.draw_plants(plants)
-        self.draw_particles(particle_filter)
+        self.draw_particles(particles, n_particles)
 
-        # cv.imshow("Crop rows", self.img)
-        # cv.waitKey(0)
+        # Testing of the function draw_complete_particle
+        self.img = np.zeros((self.world.height, self.world.width, 1), np.uint8)
+
+        offset = 240
+        position = self.world.height - 40
+        ir = 110  # Problematic when go to a low ir (~40 for example)
+        skew = -np.pi / 34
+        convergence = 0.04
+        ip = 110
+
+        particle = Particle(self.world, offset, position, ir, ip, convergence, skew)
+
+        self.draw_complete_particle(particle)
