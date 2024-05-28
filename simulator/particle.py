@@ -12,7 +12,8 @@ class Particle:
 
         self.world = world
         if not (self.world.are_coordinates_valid(self.offset, self.position)):
-            print("Warning: particle0's offset and/or position has an invalid value.")
+            print("Warning: particle's offset and/or position has "
+                  "an invalid value : ({}, {}).".format(int(self.offset), int(self.position)))
 
     def get_bottom_plants(self):
         """
@@ -247,7 +248,7 @@ class Particle:
         # We could take any two plants to compute the vanishing point, here plant 0 and 1
         if len(bottom_plants) < 2:
             print("Can not compute the vanishing point.")
-            return -1
+            return plants
 
         vanishing_point = self.get_vanishing_point(bottom_plants[0], top_crossing_points[0],
                                                    bottom_plants[1], top_crossing_points[1])
