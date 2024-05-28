@@ -12,7 +12,7 @@ from simulator.particle import Particle
 # Sensors, 21(2), 2021.
 
 class ParticleFilter:
-    def __init__(self, world, number_of_particles, limits, process_noise, measurement_noise):
+    def __init__(self, world, number_of_particles, limits, process_noise, measurement_uncertainty):
         if number_of_particles < 1:
             print("Warning: initializing particle0 filter with number of particles < 1: {}".format(number_of_particles))
 
@@ -41,7 +41,7 @@ class ParticleFilter:
 
         # Set noise
         self.process_noise = process_noise
-        self.measurement_noise = measurement_noise
+        self.measurement_uncertainty = measurement_uncertainty
 
     def initialize_particles_uniform(self):
         # Initialize particles with uniform weight distribution
@@ -56,7 +56,7 @@ class ParticleFilter:
             skew = np.random.uniform(self.skew_min, self.skew_max, 1)[0]
             convergence = np.random.uniform(self.convergence_min, self.convergence_max, 1)[0]
 
-            # Add particle0 i
+            # Add particle i
             self.particles.append(
                 [weight, [offset, position, inter_plant, inter_row, skew, convergence]]
             )
@@ -73,6 +73,12 @@ class ParticleFilter:
 
         if state[1] > self.position_max:
             state[1] -= (self.position_max - self.position_min)
+
+        if state[0] < self.offset_min:
+            state[0] = 40
+
+        if state[0] > self.offset_max:
+            state[0] = self.world.width - 40
 
         return state
 
@@ -184,22 +190,62 @@ class ParticleFilter:
 
     # Measurement model
     # p(zk / xk)
-    def compute_likelihood(self, sample, measurement):
+    def compute_likelihood(self, sample, measurement, plant_size):
         """
-        Compute likelihood p(z|sample) for a specific measurement given (unweighted) sample state and landmarks.
+        Compute likelihood p(z|sample) for a specific measurement given (unweighted) sample state.
         The measurement is an image containing plants. The sample is not an image : it contains parameters values from
-        which we can draw an image and/or find its plants positions.
+        which we can draw an image and/or find its plants positions. For each position given by the
+        particle, we look at the pixels in the measurement image located around (size of the plant) this position.
         """
 
-        # Initialize measurement likelihood
-        likelihood_sample = 1.0
-
-        # Expected measurement assuming the current particle state
+        # Expected plant positions assuming the current particle state
         particle = Particle(self.world, sample[0], sample[1], sample[2], sample[3], sample[4], sample[5])
         expected_plant_positions = particle.get_all_plants()
 
-        # Measurement
-        print("Measurement : {}".format(measurement))
+        # TODO: Find what to do in that case.
+        if expected_plant_positions == -1:
+            print("Compute likelihood can't be done because the particle doesn't return a list of plant positions.")
+            return 0
+
+        # IN MAIN WE ONLY HAVE ONE PARTICLE FOR THE MOMENT
+
+        # Initialize measurement likelihood for the particle/sample.
+        likelihood_sample = 1.0
+
+        # Computing for each expected plant position its probability of really being a position where a plant is.
+        for plant in expected_plant_positions:
+            # Initializing the list containing the pixels on the measurement image that are located around the expected
+            # position for the plant. The area we consider corresponds to the plant size.
+            surrounding_measured_pixels = []
+
+            # Appending the surrounding pixels.
+            for y in range(-int(plant_size / 2), int(plant_size / 2)):
+                for x in range(-int(plant_size / 2), int(plant_size / 2)):
+                    x_coordinate = int(plant[0] - x)
+                    y_coordinate = int(plant[1] - y)
+
+                    if self.world.are_coordinates_valid(x_coordinate, y_coordinate):
+                        measured_pixel = measurement[y_coordinate][x_coordinate]
+                        surrounding_measured_pixels.append(measured_pixel)
+
+            if len(surrounding_measured_pixels) > 0:
+                # Getting the number of green pixels in that surrounding.
+                nb_green_pixels = 0
+                for pixel in surrounding_measured_pixels:
+                    # Needs to be changed if we change to binary images instead of RGB images.
+                    if pixel[1] == 255:
+                        nb_green_pixels += 1
+
+                # Getting the number of pixels other than green in that surrounding.
+                nb_other_pixels = len(surrounding_measured_pixels) - nb_green_pixels
+
+                # Computing the probability associated to the plant position.
+                pr_plant_given_position = ((nb_green_pixels * self.measurement_uncertainty[0] +
+                                           nb_other_pixels * self.measurement_uncertainty[1])
+                                           / len(surrounding_measured_pixels))
+
+                likelihood_sample *= pr_plant_given_position
+
 
         # # Map difference true and expected distance measurement to probability
         # # Normal distribution
@@ -217,7 +263,7 @@ class ParticleFilter:
         return likelihood_sample
 
     @abstractmethod
-    def update(self, plants_motion_move_distance, measurement):
+    def update(self, plants_motion_move_distance, measurement, plant_size):
         """
         Process a measurement given the measured plants' displacement. Abstract method that must be implemented in
         derived class.
