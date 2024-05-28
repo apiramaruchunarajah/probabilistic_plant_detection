@@ -32,7 +32,7 @@ class ParticleFilterSIR(ParticleFilter):
         """
         return True
 
-    def update(self, plants_motion_move_distance, measurement):
+    def update(self, plants_motion_move_distance, measurement, plant_size):
         # Loop over all particles
         new_particles = []
         for par in self.particles:
@@ -40,7 +40,7 @@ class ParticleFilterSIR(ParticleFilter):
             propagated_state = self.propagate_sample(par[1], plants_motion_move_distance)
 
             # Compute current particle's weight
-            #weight = par[0] * self.compute_likelihood(propagated_state, measurement)
+            weight = par[0] * self.compute_likelihood(propagated_state, measurement, plant_size)
 
             # Store
             #new_particles.append([weight, propagated_state])
