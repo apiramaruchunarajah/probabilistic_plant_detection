@@ -2,7 +2,7 @@ import numpy as np
 
 
 class Particle:
-    def __init__(self, world, offset, position, inter_row, inter_plant, convergence, skew):
+    def __init__(self, world, offset, position, inter_plant, inter_row, skew, convergence):
         self.offset = offset
         self.position = position
         self.ir_at_bottom = inter_row
@@ -12,7 +12,7 @@ class Particle:
 
         self.world = world
         if not (self.world.are_coordinates_valid(self.offset, self.position)):
-            print("Warning: particle's offset and/or position has an invalid value.")
+            print("Warning: particle0's offset and/or position has an invalid value.")
 
     def get_bottom_plants(self):
         """
@@ -59,7 +59,7 @@ class Particle:
         # Use of the tan = opposé / adjacent formula
         x_coordinate = np.tan(self.skew) * self.position
         x_coordinate += self.offset
-        center = np.asarray([int(x_coordinate), 0])
+        center = np.asarray([x_coordinate, 0])
 
         return center
 
@@ -68,8 +68,8 @@ class Particle:
         Returns the coordinates of the positions where the rows cross with the top of the image by using the
         convergence.
 
-        Remarque : we purposefully don't check if the coordinates are valid coordinates (valid in the sense in
-        the image).
+        # TODO: only two points of top_crossing_points are used to find the vanishing point, maybe we don't need this
+        # method get_all_top_crossing_points.
         """
         # List of coordinates to be returned
         horizontal_neighbors = []
@@ -94,7 +94,7 @@ class Particle:
             nb_plants_treated += 1
 
         # Appending the top particular plant
-        center = np.asarray([top_offset, top_position])
+        center = np.asarray([int(top_offset), int(top_position)])
         horizontal_neighbors.append(center)
         nb_plants_treated += 1
 
@@ -102,7 +102,7 @@ class Particle:
         right_plant_x = top_offset
         while nb_plants_treated < (nb_left_neighbors + nb_right_neighbors + 1):
             right_plant_x += ir_at_top
-            center = np.asarray([right_plant_x, top_position])
+            center = np.asarray([int(right_plant_x), int(top_position)])
             horizontal_neighbors.append(center)
             nb_plants_treated += 1
 
@@ -224,7 +224,7 @@ class Particle:
 
     def get_all_plants(self):
         """
-        Returns a list containing the coordinates of all the plants that the image created by the particle contains
+        Returns a list containing the coordinates of all the plants that the image created by the particle0 contains
         regarding its field parameters.
         """
         # List of all plants coordinates
@@ -237,8 +237,6 @@ class Particle:
         plants.extend(bottom_plants)
 
         # Getting the crossing point for each row : point of intersection between a row and the top of the image.
-        # TODO: only two points of top_crossing_points are used to find the vanishing point, maybe we don't need the
-        #  method get_all_top_crossing_points.
         top_crossing_points = self.get_all_top_crossing_points(nb_left_plants, nb_right_plants)
 
         if len(bottom_plants) != len(top_crossing_points):
