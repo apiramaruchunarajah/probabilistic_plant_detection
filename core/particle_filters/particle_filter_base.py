@@ -2,6 +2,9 @@ from abc import abstractmethod
 import copy
 import numpy as np
 
+# Import of the Particle class
+from simulator.particle import Particle
+
 
 # Modified code from :
 # Jos Elfring, Elena Torta, and René van de Molengraft.
@@ -9,13 +12,14 @@ import numpy as np
 # Sensors, 21(2), 2021.
 
 class ParticleFilter:
-    def __init__(self, number_of_particles, limits, process_noise, measurement_noise):
+    def __init__(self, world, number_of_particles, limits, process_noise, measurement_noise):
         if number_of_particles < 1:
             print("Warning: initializing particle0 filter with number of particles < 1: {}".format(number_of_particles))
 
         # Initialize filter settings
         self.n_particles = number_of_particles
         self.particles = []
+        self.world = world
 
         # State related settings
         # For the moment we are not considering the speed parameter.
@@ -101,9 +105,9 @@ class ParticleFilter:
 
     def get_max_weight(self):
         """
-        Find maximum weight in particle0 filter.
+        Find maximum weight in particle filter.
 
-        :return: Maximum particle0 weight
+        :return: Maximum particle weight
         """
         return max([weighted_sample[0] for weighted_sample in self.particles])
 
@@ -139,7 +143,6 @@ class ParticleFilter:
         return [[weighted_sample[0] / sum_weights, weighted_sample[1]] for weighted_sample in weighted_samples]
 
     # Motion model
-    # ~p(xk | xk-1)
     def propagate_sample(self, sample, motion_move_distance):
         """
         Propagates an individual sample using a motion model where the position is moving downward and the other
@@ -169,7 +172,7 @@ class ParticleFilter:
         # zero mean Gaussian noise.
         motion_move_distance_with_noise = np.random.normal(motion_move_distance, self.process_noise[1], 1)[0]
 
-        # If the new position value is more the height than we move back the particle0
+        # If the new position value is more than the height than we move back the particle0
         position = propagated_sample[1] + motion_move_distance_with_noise
         if position >= self.position_max:
             propagated_sample[1] -= motion_move_distance_with_noise + (position - self.position_max)
@@ -179,30 +182,37 @@ class ParticleFilter:
         # TODO: modify validate_state
         return self.validate_state(propagated_sample)
 
+    # Measurement model
     # p(zk / xk)
     def compute_likelihood(self, sample, measurement):
         """
-        Compute likelihood p(z|sample) for a specific measurement given sample state and landmarks.
+        Compute likelihood p(z|sample) for a specific measurement given (unweighted) sample state and landmarks.
+        The measurement is an image containing plants. The sample is not an image : it contains parameters values from
+        which we can draw an image and/or find its plants positions.
         """
 
         # Initialize measurement likelihood
         likelihood_sample = 1.0
 
-        # Expected measurement assuming the current particle0 state
-        expected_position = sample[0]
+        # Expected measurement assuming the current particle state
+        particle = Particle(self.world, sample[0], sample[1], sample[2], sample[3], sample[4], sample[5])
+        expected_plant_positions = particle.get_all_plants()
 
-        # Map difference true and expected distance measurement to probability
-        # Normal distribution
-        #TODO : think about Bernoulli distribution
-        pr_z_given_position = \
-            np.exp(-(expected_position - measurement) * (expected_position - measurement) /
-                   (2 * self.measurement_noise[0] * self.measurement_noise[0]))
+        # Measurement
+        print("Measurement : {}".format(measurement))
 
-        #print("Expected position, pr_z_given_position : {}, {}"
-        #      .format(expected_position, pr_z_given_position))
-
-        # We will probably need to use multiplication when using the 7 parameters
-        likelihood_sample *= pr_z_given_position
+        # # Map difference true and expected distance measurement to probability
+        # # Normal distribution
+        # #TODO : think about Bernoulli distribution
+        # pr_z_given_position = \
+        #     np.exp(-(expected_position - measurement) * (expected_position - measurement) /
+        #            (2 * self.measurement_noise[0] * self.measurement_noise[0]))
+        #
+        # #print("Expected position, pr_z_given_position : {}, {}"
+        # #      .format(expected_position, pr_z_given_position))
+        #
+        # # We will probably need to use multiplication when using the 7 parameters
+        # likelihood_sample *= pr_z_given_position
 
         return likelihood_sample
 
