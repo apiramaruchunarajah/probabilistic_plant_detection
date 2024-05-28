@@ -9,6 +9,7 @@ from core.resampling.resampler import Resampler
 
 class ParticleFilterSIR(ParticleFilter):
     def __init__(self,
+                 world,
                  number_of_particles,
                  limits,
                  process_noise,
@@ -16,7 +17,7 @@ class ParticleFilterSIR(ParticleFilter):
                  resampling_algorithm):
 
         # Initialize particle0 filter base class
-        ParticleFilter.__init__(self, number_of_particles, limits, process_noise, measurement_noise)
+        ParticleFilter.__init__(self, world, number_of_particles, limits, process_noise, measurement_noise)
 
         # Set SIR specific properties
         self.resampling_algorithm = resampling_algorithm
@@ -35,10 +36,10 @@ class ParticleFilterSIR(ParticleFilter):
         # Loop over all particles
         new_particles = []
         for par in self.particles:
-            # Propagate the particle0 state according to the current particle0
+            # Propagate the particle state according to the current particle0
             propagated_state = self.propagate_sample(par[1], plants_motion_move_distance)
 
-            # Compute current particle0's weight
+            # Compute current particle's weight
             #weight = par[0] * self.compute_likelihood(propagated_state, measurement)
 
             # Store
