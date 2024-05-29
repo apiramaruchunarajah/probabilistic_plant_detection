@@ -61,7 +61,7 @@ class Plants:
             # number of plants in the row : between 70% and 100% of the maximum number of plants per row
             nb_plants = np.random.randint(np.floor(0.70 * self.max_number_plants_per_row),
                                           self.max_number_plants_per_row)
-            nb_plants = self.max_number_plants_per_row
+            nb_plants = int(self.max_number_plants_per_row)
             # random positions for each plant
             random_selection = np.random.choice(np.arange(self.vp_height, self.world.height, self.inter_plant_distance),
                                                 nb_plants, replace=False)
