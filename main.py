@@ -20,7 +20,7 @@ if __name__ == '__main__':
     world = World(500, 700, 10)
 
     # Number of simulated time steps
-    n_time_steps = 30 + 40
+    n_time_steps = 30 + 40 + 40
 
     # Initialize visualizer
     visualizer = Visualizer(world)
@@ -41,10 +41,10 @@ if __name__ == '__main__':
     true_plants_meas_noise_position_std = 7
 
     # Size of a plant : length of the side of a square
-    plant_size = 4
+    plant_size = 11
 
     # Initialize plants
-    plants = Plants(world, -240, 400, 80, 110, o=0, nb_rows=7, nb_plant_types=4)
+    plants = Plants(world, -700, 400, 80, 110, o=0, nb_rows=7, nb_plant_types=4)
     plants.setStandardDeviations(true_plants_motion_move_distance_std, true_plants_meas_noise_position_std)
     plants.generate_plants()
 
@@ -66,18 +66,18 @@ if __name__ == '__main__':
                        600, 700,
                        80, 120,
                        60, 100,
-                       -np.pi/8, np.pi/8,
+                       -np.pi/2.4, np.pi/2.4,
                        0, 0.8]
 
     # Process model noise (zero mean additive Gaussian noise)
     # This noise has a huge impact on the correctness of the particle0 filter
-    motion_model_move_distance_std = 11
+    motion_model_move_distance_std = 40
     process_noise = [6,  # Offset
                      motion_model_move_distance_std,  # Position
                      6,  # Inter-plant
                      6,  # Inter-row
-                     np.pi / 12,  # Skew
-                     0.11]  # Convergence
+                     np.pi / 4,  # Skew
+                     0.25]  # Convergence
 
     # Probability associated to the measurement image. We have the probability for a pixel
     probability_in = 0.8
