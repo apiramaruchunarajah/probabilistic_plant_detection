@@ -62,15 +62,13 @@ class Particle:
         x_coordinate += self.offset
         center = np.asarray([x_coordinate, 0])
 
+        # The returned position doesn't need to be within the image.
         return center
 
     def get_all_top_crossing_points(self, nb_left_neighbors, nb_right_neighbors):
         """
         Returns the coordinates of the positions where the rows cross with the top of the image by using the
         convergence.
-
-        # TODO: only two points of top_crossing_points are used to find the vanishing point, maybe we don't need this
-        # method get_all_top_crossing_points.
         """
         # List of coordinates to be returned
         horizontal_neighbors = []
@@ -94,8 +92,8 @@ class Particle:
             horizontal_neighbors.append(center)
             nb_plants_treated += 1
 
-        # Appending the top particular plant
-        center = np.asarray([int(top_offset), int(top_position)])
+        # Appending the top particular crossing point
+        center = np.asarray([top_offset, top_position])
         horizontal_neighbors.append(center)
         nb_plants_treated += 1
 
@@ -173,7 +171,8 @@ class Particle:
             next_plant = np.asarray([int(next_plant_x), int(next_plant_y)])
 
             # Appending the next plant
-            row_plants.append(next_plant)
+            if self.world.are_coordinates_valid(next_plant[0], next_plant[1]):
+                row_plants.append(next_plant)
 
             current_plant = next_plant
 
@@ -240,14 +239,11 @@ class Particle:
         # Getting the crossing point for each row : point of intersection between a row and the top of the image.
         top_crossing_points = self.get_all_top_crossing_points(nb_left_plants, nb_right_plants)
 
-        if len(bottom_plants) != len(top_crossing_points):
-            print("Error: number of bottom plants and number of top crossing points are not equal.")
-            return -1
-
         # Getting the vanishing point
         # We could take any two plants to compute the vanishing point, here plant 0 and 1
-        if len(bottom_plants) < 2:
-            print("Can not compute the vanishing point.")
+        if len(bottom_plants) < 2 or len(top_crossing_points) < 2:
+            print("Can not compute the vanishing point, bottom plants : {}, top crossing points : {}."
+                  .format(bottom_plants, top_crossing_points))
             return plants
 
         vanishing_point = self.get_vanishing_point(bottom_plants[0], top_crossing_points[0],
