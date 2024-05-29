@@ -56,8 +56,9 @@ if __name__ == '__main__':
     # Limit values for the parameters we track.
     pf_state_limits = [0, world.width,  # Offset
                        world.height - 240, world.height,  # Position
-                       0, world.height / 2,  # Inter-plant
-                       world.width/25, world.width / 4,  # Inter-row
+                       11, world.height / 2,  # Inter-plant
+                       world.width/25, world.width / 4,  # Inter-row, not too low because get_bottom_plants
+                                                         # can take too long /!\
                        -np.pi / 8, np.pi / 8,  # Skew
                        0, 0.8]  # Convergence, close to 1 means parallel lines that can cause issues /!\
 
@@ -124,6 +125,8 @@ if __name__ == '__main__':
         avg_particle = Particle(world, avg_state[0], avg_state[1], avg_state[2], avg_state[3],
                                 avg_state[4], avg_state[5])
         visualizer.draw_complete_particle(avg_particle)
+        print("Avg skew : {}, avg convergence : {}, avg inter-plant : {}"
+              .format(avg_particle.skew, avg_particle.convergence, avg_particle.ip_at_bottom))
 
         # # Drawing the first particle
         # state = particle_filter_sir.particles[0][1]
