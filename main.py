@@ -41,7 +41,7 @@ if __name__ == '__main__':
     true_plants_meas_noise_position_std = 7
 
     # Size of a plant : length of the side of a square
-    plant_size = 1
+    plant_size = 6
 
     # Initialize plants
     plants = Plants(world, -100, 250, 80, 110, o=0, nb_rows=7, nb_plant_types=4)
@@ -52,23 +52,24 @@ if __name__ == '__main__':
     # Particle filter settings
     ##
 
-    number_of_particles = 1
+    number_of_particles = 60
     # Limit values for the parameters we track.
     pf_state_limits = [0, world.width,  # Offset
                        world.height - 240, world.height,  # Position
-                       world.height / 6, world.height / 2,  # Inter-plant
-                       world.width / 6, world.width / 2,  # Inter-row
-                       -np.pi / 6, np.pi / 6,  # Skew
-                       0, 1]  # Convergence
+                       11, world.height / 2,  # Inter-plant
+                       world.width/25, world.width / 4,  # Inter-row, not too low because get_bottom_plants
+                                                         # can take too long /!\
+                       -np.pi / 8, np.pi / 8,  # Skew
+                       0, 0.8]  # Convergence, close to 1 means parallel lines that can cause issues /!\
 
     # Process model noise (zero mean additive Gaussian noise)
     # This noise has a huge impact on the correctness of the particle0 filter
-    motion_model_move_distance_std = 40
-    process_noise = [40,  # Offset
+    motion_model_move_distance_std = 11
+    process_noise = [11,  # Offset
                      motion_model_move_distance_std,  # Position
-                     110,  # Inter-plant
-                     110,  # Inter-row
-                     np.pi / 64,  # Skew
+                     40,  # Inter-plant
+                     40,  # Inter-row
+                     np.pi / 12,  # Skew
                      0.11]  # Convergence
 
     # Probability associated to the measurement image. We have the probability for a pixel
@@ -124,6 +125,8 @@ if __name__ == '__main__':
         avg_particle = Particle(world, avg_state[0], avg_state[1], avg_state[2], avg_state[3],
                                 avg_state[4], avg_state[5])
         visualizer.draw_complete_particle(avg_particle)
+        print("Avg skew : {}, avg convergence : {}, avg inter-plant : {}"
+              .format(avg_particle.skew, avg_particle.convergence, avg_particle.ip_at_bottom))
 
         # # Drawing the first particle
         # state = particle_filter_sir.particles[0][1]

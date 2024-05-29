@@ -227,7 +227,6 @@ class ParticleFilter:
         particle = Particle(self.world, sample[0], sample[1], sample[2], sample[3], sample[4], sample[5])
         expected_plant_positions = particle.get_all_plants()
 
-        # TODO: Find what to do in that case.
         if expected_plant_positions == -1:
             print("Compute likelihood can't be done because the particle doesn't return a list of plant positions.")
             return 0
@@ -239,11 +238,11 @@ class ParticleFilter:
 
         # Computing for each expected plant position its probability of really being a position where a plant is.
         for plant in expected_plant_positions:
-            # Initializing the list containing the pixels on the measurement image that are located around the expected
-            # position for the plant. The area we consider corresponds to the plant size.
-            surrounding_measured_pixels = []
+            # Initializing the total number of pixels in the surrounding and the number of green pixels among them.
+            total_nb_surrounding_pixels = 0
+            nb_green_pixels = 0
 
-            # Appending the surrounding pixels.
+            # Going through all the surrounding pixels.
             for y in range(-int(plant_size / 2), int(plant_size / 2)):
                 for x in range(-int(plant_size / 2), int(plant_size / 2)):
                     x_coordinate = int(plant[0] - x)
@@ -251,39 +250,20 @@ class ParticleFilter:
 
                     if self.world.are_coordinates_valid(x_coordinate, y_coordinate):
                         measured_pixel = measurement[y_coordinate][x_coordinate]
-                        surrounding_measured_pixels.append(measured_pixel)
+                        total_nb_surrounding_pixels += 1
+                        # Checking if the pixel is green.
+                        if measured_pixel[1] == 255:
+                            nb_green_pixels += 1
 
-            if len(surrounding_measured_pixels) > 0:
-                # Getting the number of green pixels in that surrounding.
-                nb_green_pixels = 0
-                for pixel in surrounding_measured_pixels:
-                    # Needs to be changed if we change to binary images instead of RGB images.
-                    if pixel[1] == 255:
-                        nb_green_pixels += 1
+            # Getting the number of pixels other than green in that surrounding.
+            nb_other_pixels = total_nb_surrounding_pixels - nb_green_pixels
 
-                # Getting the number of pixels other than green in that surrounding.
-                nb_other_pixels = len(surrounding_measured_pixels) - nb_green_pixels
+            # Computing the probability associated to the plant position.
+            pr_plant_given_position = ((nb_green_pixels * self.measurement_uncertainty[0] +
+                                        nb_other_pixels * self.measurement_uncertainty[1])
+                                       / total_nb_surrounding_pixels)
 
-                # Computing the probability associated to the plant position.
-                pr_plant_given_position = ((nb_green_pixels * self.measurement_uncertainty[0] +
-                                           nb_other_pixels * self.measurement_uncertainty[1])
-                                           / len(surrounding_measured_pixels))
-
-                likelihood_sample *= pr_plant_given_position
-
-
-        # # Map difference true and expected distance measurement to probability
-        # # Normal distribution
-        # #TODO : think about Bernoulli distribution
-        # pr_z_given_position = \
-        #     np.exp(-(expected_position - measurement) * (expected_position - measurement) /
-        #            (2 * self.measurement_noise[0] * self.measurement_noise[0]))
-        #
-        # #print("Expected position, pr_z_given_position : {}, {}"
-        # #      .format(expected_position, pr_z_given_position))
-        #
-        # # We will probably need to use multiplication when using the 7 parameters
-        # likelihood_sample *= pr_z_given_position
+            likelihood_sample *= pr_plant_given_position
 
         return likelihood_sample
 
