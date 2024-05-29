@@ -2,6 +2,9 @@ from abc import abstractmethod
 import copy
 import numpy as np
 
+# Import of the Particle class
+from simulator.particle import Particle
+
 
 # Modified code from :
 # Jos Elfring, Elena Torta, and René van de Molengraft.
@@ -9,13 +12,14 @@ import numpy as np
 # Sensors, 21(2), 2021.
 
 class ParticleFilter:
-    def __init__(self, number_of_particles, limits, process_noise, measurement_noise):
+    def __init__(self, world, number_of_particles, limits, process_noise, measurement_uncertainty):
         if number_of_particles < 1:
             print("Warning: initializing particle0 filter with number of particles < 1: {}".format(number_of_particles))
 
         # Initialize filter settings
         self.n_particles = number_of_particles
         self.particles = []
+        self.world = world
 
         # State related settings
         # For the moment we are not considering the speed parameter.
@@ -37,7 +41,7 @@ class ParticleFilter:
 
         # Set noise
         self.process_noise = process_noise
-        self.measurement_noise = measurement_noise
+        self.measurement_uncertainty = measurement_uncertainty
 
     def initialize_particles_uniform(self):
         # Initialize particles with uniform weight distribution
@@ -52,7 +56,7 @@ class ParticleFilter:
             skew = np.random.uniform(self.skew_min, self.skew_max, 1)[0]
             convergence = np.random.uniform(self.convergence_min, self.convergence_max, 1)[0]
 
-            # Add particle0 i
+            # Add particle i
             self.particles.append(
                 [weight, [offset, position, inter_plant, inter_row, skew, convergence]]
             )
@@ -62,13 +66,45 @@ class ParticleFilter:
 
     def validate_state(self, state):
         # Make sure state does not exceed allowed limits
-        # TODO: find a better way of validating states
 
-        while state[1] < self.position_min:
-            state[1] += (self.position_max - self.position_min)
+        # Validate Offset
+        if state[0] < self.offset_min:
+            state[0] = self.offset_min
 
+        if state[0] > self.offset_max:
+            state[0] = self.offset_max-1
+
+        # Validate Position
         if state[1] > self.position_max:
-            state[1] -= (self.position_max - self.position_min)
+            state[1] = self.position_max-1
+
+        if state[1] < self.position_min:
+            state[1] = self.position_min
+
+        # Validate Inter-plant
+        if state[2] > self.inter_plant_max:
+            state[2] = self.inter_plant_max
+
+        if state[2] < self.inter_plant_min:
+            state[2] = self.inter_plant_min
+
+        # Validate Inter-Row
+        if state[3] > self.inter_row_max:
+            state[3] = self.inter_row_max
+
+        if state[3] < self.inter_row_min:
+            state[3] = self.inter_row_min
+
+        # Validate skew
+        if state[4] < self.skew_min or state[4] > self.skew_max:
+            state[4] = (self.skew_max - self.skew_min) / 2
+
+        # Validate convergence:
+        if state[5] > self.convergence_max:
+            state[5] = self.convergence_max
+
+        if state[5] < self.convergence_min:
+            state[5] = self.convergence_min
 
         return state
 
@@ -101,9 +137,9 @@ class ParticleFilter:
 
     def get_max_weight(self):
         """
-        Find maximum weight in particle0 filter.
+        Find maximum weight in particle filter.
 
-        :return: Maximum particle0 weight
+        :return: Maximum particle weight
         """
         return max([weighted_sample[0] for weighted_sample in self.particles])
 
@@ -139,7 +175,6 @@ class ParticleFilter:
         return [[weighted_sample[0] / sum_weights, weighted_sample[1]] for weighted_sample in weighted_samples]
 
     # Motion model
-    # ~p(xk | xk-1)
     def propagate_sample(self, sample, motion_move_distance):
         """
         Propagates an individual sample using a motion model where the position is moving downward and the other
@@ -169,45 +204,71 @@ class ParticleFilter:
         # zero mean Gaussian noise.
         motion_move_distance_with_noise = np.random.normal(motion_move_distance, self.process_noise[1], 1)[0]
 
-        # If the new position value is more the height than we move back the particle0
+        # If the new position value is more than the height than we move back the particle
         position = propagated_sample[1] + motion_move_distance_with_noise
         if position >= self.position_max:
-            propagated_sample[1] -= motion_move_distance_with_noise + (position - self.position_max)
+            propagated_sample[1] -= 2 * (motion_move_distance_with_noise + (position - self.position_max))
         else:
             propagated_sample[1] = position
 
-        # TODO: modify validate_state
         return self.validate_state(propagated_sample)
 
+    # Measurement model
     # p(zk / xk)
-    def compute_likelihood(self, sample, measurement):
+    def compute_likelihood(self, sample, measurement, plant_size):
         """
-        Compute likelihood p(z|sample) for a specific measurement given sample state and landmarks.
+        Compute likelihood p(z|sample) for a specific measurement given (unweighted) sample state.
+        The measurement is an image containing plants. The sample is not an image : it contains parameters values from
+        which we can draw an image and/or find its plants positions. For each position given by the
+        particle, we look at the pixels in the measurement image located around (size of the plant) this position.
         """
 
-        # Initialize measurement likelihood
+        # Expected plant positions assuming the current particle state
+        particle = Particle(self.world, sample[0], sample[1], sample[2], sample[3], sample[4], sample[5])
+        expected_plant_positions = particle.get_all_plants()
+
+        if expected_plant_positions == -1:
+            print("Compute likelihood can't be done because the particle doesn't return a list of plant positions.")
+            return 0
+
+        # IN MAIN WE ONLY HAVE ONE PARTICLE FOR THE MOMENT
+
+        # Initialize measurement likelihood for the particle/sample.
         likelihood_sample = 1.0
 
-        # Expected measurement assuming the current particle0 state
-        expected_position = sample[0]
+        # Computing for each expected plant position its probability of really being a position where a plant is.
+        for plant in expected_plant_positions:
+            # Initializing the total number of pixels in the surrounding and the number of green pixels among them.
+            total_nb_surrounding_pixels = 0
+            nb_green_pixels = 0
 
-        # Map difference true and expected distance measurement to probability
-        # Normal distribution
-        #TODO : think about Bernoulli distribution
-        pr_z_given_position = \
-            np.exp(-(expected_position - measurement) * (expected_position - measurement) /
-                   (2 * self.measurement_noise[0] * self.measurement_noise[0]))
+            # Going through all the surrounding pixels.
+            for y in range(-int(plant_size / 2), int(plant_size / 2)):
+                for x in range(-int(plant_size / 2), int(plant_size / 2)):
+                    x_coordinate = int(plant[0] - x)
+                    y_coordinate = int(plant[1] - y)
 
-        #print("Expected position, pr_z_given_position : {}, {}"
-        #      .format(expected_position, pr_z_given_position))
+                    if self.world.are_coordinates_valid(x_coordinate, y_coordinate):
+                        measured_pixel = measurement[y_coordinate][x_coordinate]
+                        total_nb_surrounding_pixels += 1
+                        # Checking if the pixel is green.
+                        if measured_pixel[1] == 255:
+                            nb_green_pixels += 1
 
-        # We will probably need to use multiplication when using the 7 parameters
-        likelihood_sample *= pr_z_given_position
+            # Getting the number of pixels other than green in that surrounding.
+            nb_other_pixels = total_nb_surrounding_pixels - nb_green_pixels
+
+            # Computing the probability associated to the plant position.
+            pr_plant_given_position = ((nb_green_pixels * self.measurement_uncertainty[0] +
+                                        nb_other_pixels * self.measurement_uncertainty[1])
+                                       / total_nb_surrounding_pixels)
+
+            likelihood_sample *= pr_plant_given_position
 
         return likelihood_sample
 
     @abstractmethod
-    def update(self, plants_motion_move_distance, measurement):
+    def update(self, plants_motion_move_distance, measurement, plant_size):
         """
         Process a measurement given the measured plants' displacement. Abstract method that must be implemented in
         derived class.

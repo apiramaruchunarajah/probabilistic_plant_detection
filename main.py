@@ -3,10 +3,12 @@ import cv2 as cv
 
 import numpy as np
 
-# Simulation + plotting requires a robot, visualizer and world
+# Simulation + plotting requires plants, visualizer and world
 from simulator import Plants, Visualizer, World
 
-# Supported resampling methods (resampling algorithm enum for SIR and SIR-derived particle filters)
+from simulator.particle import Particle
+
+# Supported resampling methods (resampling algorithm enum for SIR and SIR-derived particle0 filters)
 from core.resampling.resampler import ResamplingAlgorithms
 
 # Particle filters
@@ -19,7 +21,6 @@ if __name__ == '__main__':
 
     # Number of simulated time steps
     n_time_steps = 30 + 40
-    # n_time_steps = 1
 
     # Initialize visualizer
     visualizer = Visualizer(world)
@@ -39,8 +40,11 @@ if __name__ == '__main__':
     # Plants measurements are corrupted by measurement noise
     true_plants_meas_noise_position_std = 7
 
+    # Size of a plant : length of the side of a square
+    plant_size = 4
+
     # Initialize plants
-    plants = Plants(world, -100, 250, 80, 110, o=0, nb_rows=7, nb_plant_types=4)
+    plants = Plants(world, -240, 400, 80, 110, o=0, nb_rows=7, nb_plant_types=4)
     plants.setStandardDeviations(true_plants_motion_move_distance_std, true_plants_meas_noise_position_std)
     plants.generate_plants()
 
@@ -48,33 +52,55 @@ if __name__ == '__main__':
     # Particle filter settings
     ##
 
-    number_of_particles = 100
-    # For the moment we track position, which is between 0 and height
-    pf_state_limits = [0, world.height]
+    number_of_particles = 40
+    # Limit values for the parameters we track.
+    pf_state_limits = [0, world.width,  # Offset
+                       world.height - 240, world.height,  # Position
+                       11, 240,  # Inter-plant
+                       world.width/25, world.width / 4,  # Inter-row, not too low because get_bottom_plants
+                                                         # can take too long /!\
+                       -np.pi / 8, np.pi / 8,  # Skew
+                       0, 0.8]  # Convergence, close to 1 means parallel lines that can cause issues /!\
+
+    pf_state_limits = [240, 260,
+                       600, 700,
+                       80, 120,
+                       60, 100,
+                       -np.pi/8, np.pi/8,
+                       0, 0.8]
 
     # Process model noise (zero mean additive Gaussian noise)
-    # This noise has a huge impact on the correctness of the particle filter
-    motion_model_move_distance_std = 25
-    process_noise = [motion_model_move_distance_std]
+    # This noise has a huge impact on the correctness of the particle0 filter
+    motion_model_move_distance_std = 11
+    process_noise = [6,  # Offset
+                     motion_model_move_distance_std,  # Position
+                     6,  # Inter-plant
+                     6,  # Inter-row
+                     np.pi / 12,  # Skew
+                     0.11]  # Convergence
 
-    # Measurement noise (zero mean additive Gaussian noise)
-    meas_model_position_std = 7
-    measurement_noise = [meas_model_position_std]
+    # Probability associated to the measurement image. We have the probability for a pixel
+    probability_in = 0.8
+    probability_out = 0.02
+    measurement_uncertainty = [probability_in, probability_out]
 
     # Set resampling algorithm used
     # TODO: compare with the other resampling algorithms
     algorithm = ResamplingAlgorithms.STRATIFIED
 
-    # Initialize SIR particle filter: resample every time step
+    # Initialize SIR particle0 filter: resample every time step
     particle_filter_sir = ParticleFilterSIR(
+        world=world,
         number_of_particles=number_of_particles,
         limits=pf_state_limits,
         process_noise=process_noise,
-        measurement_noise=measurement_noise,
+        measurement_noise=measurement_uncertainty,
         resampling_algorithm=algorithm)
 
     # Particles are selected uniformly randomly
     particle_filter_sir.initialize_particles_uniform()
+
+    particle_filter_sir.print_particles()
 
     ##
     # Start simulation
@@ -85,21 +111,37 @@ if __name__ == '__main__':
         plants.move(plants_setpoint_motion_move_distance)
 
         # Simulate measurement
-        meas_position = plants.measure()
-        visualizer.measure()
+        meas_image = visualizer.measure()
 
         # Update SIR particle filter
-        particle_filter_sir.update(plants_setpoint_motion_move_distance, meas_position)
+        particle_filter_sir.update(plants_setpoint_motion_move_distance, meas_image, plant_size)
 
-        # Show maximum normalized particle weight (converges to 1.0) and correctness (0 = correct)
-        w_max = particle_filter_sir.get_max_weight()
-        max_weights.append(w_max)
-        # Distance between the measured value and the average particle value
-        correctness = np.sqrt(np.square(particle_filter_sir.get_average_state() - meas_position))
-        print("Time step {}: max weight: {}, correctness: {}".format(i, w_max, correctness))
+        # # Show maximum normalized particle0 weight (converges to 1.0) and correctness (0 = correct)
+        # w_max = particle_filter_sir.get_max_weight()
+        # max_weights.append(w_max)
+        # # Distance between the measured value and the average particle0 value
+        # correctness = np.sqrt(np.square(particle_filter_sir.get_average_state() - meas_position))
+        # print("Time step {}: max weight: {}, correctness: {}".format(i, w_max, correctness))
 
         # Visualization
+        # Drawing plants
         visualizer.draw(plants, particle_filter_sir.particles, particle_filter_sir.n_particles)
+
+        # Drawing a particle
+        avg_state = particle_filter_sir.get_average_state()
+        avg_particle = Particle(world, avg_state[0], avg_state[1], avg_state[2], avg_state[3],
+                                avg_state[4], avg_state[5])
+        visualizer.draw_complete_particle(avg_particle)
+        print("Avg skew : {}, avg convergence : {}, avg inter-plant : {}"
+              .format(avg_particle.skew, avg_particle.convergence, avg_particle.ip_at_bottom))
+
+        # # Drawing the first particle
+        # state = particle_filter_sir.particles[0][1]
+        # particle = Particle(world, state[0], state[1], state[2], state[3],
+        #                     state[4], state[5])
+        # visualizer.draw_complete_particle(particle)
+
+        # Showing the image
         cv.imshow("Crop rows", visualizer.img)
         cv.waitKey(0)
 
@@ -109,7 +151,7 @@ if __name__ == '__main__':
     #plt.rcParams.update({'font.size': fontSize})
     #plt.plot(range(n_time_steps), max_weights, 'k')
     #plt.xlabel("Time index")
-    #plt.ylabel("Maximum particle weight")
+    #plt.ylabel("Maximum particle0 weight")
     #plt.xlim(0, n_time_steps - 1)
     #plt.ylim(0, 1.1)
     #plt.show()

@@ -12,7 +12,8 @@ class Particle:
 
         self.world = world
         if not (self.world.are_coordinates_valid(self.offset, self.position)):
-            print("Warning: particle0's offset and/or position has an invalid value.")
+            print("Warning: particle's offset and/or position has "
+                  "an invalid value : ({}, {}).".format(int(self.offset), int(self.position)))
 
     def get_bottom_plants(self):
         """
@@ -61,15 +62,13 @@ class Particle:
         x_coordinate += self.offset
         center = np.asarray([x_coordinate, 0])
 
+        # The returned position doesn't need to be within the image.
         return center
 
     def get_all_top_crossing_points(self, nb_left_neighbors, nb_right_neighbors):
         """
         Returns the coordinates of the positions where the rows cross with the top of the image by using the
         convergence.
-
-        # TODO: only two points of top_crossing_points are used to find the vanishing point, maybe we don't need this
-        # method get_all_top_crossing_points.
         """
         # List of coordinates to be returned
         horizontal_neighbors = []
@@ -93,8 +92,8 @@ class Particle:
             horizontal_neighbors.append(center)
             nb_plants_treated += 1
 
-        # Appending the top particular plant
-        center = np.asarray([int(top_offset), int(top_position)])
+        # Appending the top particular crossing point
+        center = np.asarray([top_offset, top_position])
         horizontal_neighbors.append(center)
         nb_plants_treated += 1
 
@@ -108,26 +107,50 @@ class Particle:
 
         return horizontal_neighbors
 
-    @staticmethod
-    def get_vanishing_point(bottom_plant1, top_crossing_point1, bottom_plant2, top_crossing_point2):
+    def get_vanishing_point(self, bottom_plants, top_crossing_points):
         """
-        Takes as in put four points allowing to find the line equation of two different rows.
+        Takes as input the coordinates of the plants located at the bottom of the image and their associated top
+        crossing points.
         Returns the vanishing point : the point where rows are converging in the image perspective.
         """
-        # Finding the coefficient a1 and b1 of the first row line equation a1*x + b1 = y
-        a1 = (bottom_plant1[1] - top_crossing_point1[1]) / (bottom_plant1[0] - top_crossing_point1[0])
-        b1 = bottom_plant1[1] - a1 * bottom_plant1[0]
+        # The index of the plants used to get the vanishing point.
+        i = 0
 
-        # Finding the coefficient a2 and b2 of the second row line equation a2*x + b2 = y
-        a2 = (bottom_plant2[1] - top_crossing_point2[1]) / (bottom_plant2[0] - top_crossing_point2[0])
-        b2 = bottom_plant2[1] - a2 * bottom_plant2[0]
+        # We loop until we find a valid vanishing point or until we have tried to find the vanishing point using every
+        # adjacent rows.
+        while i < len(top_crossing_points) and i < len(bottom_plants):
 
-        # Finding the coordinates of the vanishing point
-        vanishing_point_x = (b2 - b1) / (a1 - a2)
-        vanishing_point_y = a1 * vanishing_point_x + b1
-        vanishing_point = np.asarray([int(vanishing_point_x), int(vanishing_point_y)])
+            # Points referring to a first row
+            bottom_plant1 = bottom_plants[i]
+            top_crossing_point1 = top_crossing_points[i]
 
-        return vanishing_point
+            # Points referring to a second row
+            bottom_plant2 = bottom_plants[i+1]
+            top_crossing_point2 = top_crossing_points[i+1]
+
+            # Finding the coefficient a1 and b1 of the first row line equation a1*x + b1 = y
+            a1 = (bottom_plant1[1] - top_crossing_point1[1]) / (bottom_plant1[0] - top_crossing_point1[0])
+            b1 = bottom_plant1[1] - a1 * bottom_plant1[0]
+
+            # Finding the coefficient a2 and b2 of the second row line equation a2*x + b2 = y
+            a2 = (bottom_plant2[1] - top_crossing_point2[1]) / (bottom_plant2[0] - top_crossing_point2[0])
+            b2 = bottom_plant2[1] - a2 * bottom_plant2[0]
+
+            # Finding the coordinates of the vanishing point
+            if a1 - a2 == 0:
+                vanishing_point_x = (b2 - b1)
+            else:
+                vanishing_point_x = (b2 - b1) / (a1 - a2)
+            vanishing_point_y = a1 * vanishing_point_x + b1
+
+            # Checking if the coordinates we got are not infinite.
+            if (not np.isinf(vanishing_point_x)) and (not np.isinf(vanishing_point_y)):
+                vanishing_point = np.asarray([vanishing_point_x, vanishing_point_y])
+                return vanishing_point
+
+        # If we couldn't find the vanishing point.
+        print("Error: couldn't find the vanishing point.")
+        return False, (-1, -1)
 
     def get_inter_plant_distance(self, y, vanishing_point):
         """
@@ -172,7 +195,8 @@ class Particle:
             next_plant = np.asarray([int(next_plant_x), int(next_plant_y)])
 
             # Appending the next plant
-            row_plants.append(next_plant)
+            if self.world.are_coordinates_valid(next_plant[0], next_plant[1]):
+                row_plants.append(next_plant)
 
             current_plant = next_plant
 
@@ -239,18 +263,14 @@ class Particle:
         # Getting the crossing point for each row : point of intersection between a row and the top of the image.
         top_crossing_points = self.get_all_top_crossing_points(nb_left_plants, nb_right_plants)
 
-        if len(bottom_plants) != len(top_crossing_points):
-            print("Error: number of bottom plants and number of top crossing points are not equal.")
-            return -1
-
         # Getting the vanishing point
         # We could take any two plants to compute the vanishing point, here plant 0 and 1
-        if len(bottom_plants) < 2:
-            print("Can not compute the vanishing point.")
-            return -1
+        if len(bottom_plants) < 2 or len(top_crossing_points) < 2:
+            print("Can not compute the vanishing point, bottom plants : {}, top crossing points : {}."
+                  .format(bottom_plants, top_crossing_points))
+            return plants
 
-        vanishing_point = self.get_vanishing_point(bottom_plants[0], top_crossing_points[0],
-                                                   bottom_plants[1], top_crossing_points[1])
+        vanishing_point = self.get_vanishing_point(bottom_plants, top_crossing_points)
 
         # Getting all the remaining plants row by row.
         # For each row
