@@ -41,7 +41,7 @@ if __name__ == '__main__':
     true_plants_meas_noise_position_std = 7
 
     # Size of a plant : length of the side of a square
-    plant_size = 1
+    plant_size = 6
 
     # Initialize plants
     plants = Plants(world, -100, 250, 80, 110, o=0, nb_rows=7, nb_plant_types=4)
