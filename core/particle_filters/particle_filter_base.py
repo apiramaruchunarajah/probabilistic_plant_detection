@@ -72,11 +72,11 @@ class ParticleFilter:
             state[0] = self.offset_min
 
         if state[0] > self.offset_max:
-            state[0] = self.offset_max
+            state[0] = self.offset_max-1
 
         # Validate Position
         if state[1] > self.position_max:
-            state[1] = self.position_max
+            state[1] = self.position_max-1
 
         if state[1] < self.position_min:
             state[1] = self.position_min
