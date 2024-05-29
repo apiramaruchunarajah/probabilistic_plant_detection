@@ -56,10 +56,10 @@ if __name__ == '__main__':
     # Limit values for the parameters we track.
     pf_state_limits = [0, world.width,  # Offset
                        world.height - 240, world.height,  # Position
-                       world.height / 6, world.height / 2,  # Inter-plant
+                       0, world.height / 2,  # Inter-plant
                        world.width / 6, world.width / 4,  # Inter-row
-                       np.pi / 17, np.pi / 6,  # Skew, limits have to be considered in negative and positive values.
-                       0, 1]  # Convergence
+                       -np.pi / 8, np.pi / 8,  # Skew
+                       0, 0.8]  # Convergence, close to 1 means parallel lines that can cause issues /!\
 
     # Process model noise (zero mean additive Gaussian noise)
     # This noise has a huge impact on the correctness of the particle0 filter
@@ -68,7 +68,7 @@ if __name__ == '__main__':
                      motion_model_move_distance_std,  # Position
                      110,  # Inter-plant
                      110,  # Inter-row
-                     np.pi / 256,  # Skew
+                     np.pi / 12,  # Skew
                      0.11]  # Convergence
 
     # Probability associated to the measurement image. We have the probability for a pixel
