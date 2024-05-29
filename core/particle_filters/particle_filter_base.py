@@ -66,19 +66,45 @@ class ParticleFilter:
 
     def validate_state(self, state):
         # Make sure state does not exceed allowed limits
-        # TODO: find a better way of validating states
 
-        while state[1] < self.position_min:
-            state[1] += (self.position_max - self.position_min)
-
-        if state[1] > self.position_max:
-            state[1] -= (self.position_max - self.position_min)
-
+        # Validate Offset
         if state[0] < self.offset_min:
-            state[0] = 40
+            state[0] = self.offset_min
 
         if state[0] > self.offset_max:
-            state[0] = self.world.width - 40
+            state[0] = self.offset_max
+
+        # Validate Position
+        if state[1] > self.position_max:
+            state[1] = self.position_max
+
+        if state[1] < self.position_min:
+            state[1] = self.position_min
+
+        # Validate Inter-plant
+        if state[2] > self.inter_plant_max:
+            state[2] = self.inter_plant_max
+
+        if state[2] < self.inter_plant_min:
+            state[2] = self.inter_plant_min
+
+        # Validate Inter-Row
+        if state[3] > self.inter_row_max:
+            state[3] = self.inter_row_max
+
+        if state[3] < self.inter_row_min:
+            state[3] = self.inter_row_min
+
+        # Validate skew
+        if state[4] < self.skew_min or state[4] > self.skew_max:
+            state[4] = (self.skew_max - self.skew_min) / 2
+
+        # Validate convergence:
+        if state[5] > self.convergence_max:
+            state[5] = self.convergence_max
+
+        if state[5] < self.convergence_min:
+            state[5] = self.convergence_min
 
         return state
 
@@ -178,14 +204,13 @@ class ParticleFilter:
         # zero mean Gaussian noise.
         motion_move_distance_with_noise = np.random.normal(motion_move_distance, self.process_noise[1], 1)[0]
 
-        # If the new position value is more than the height than we move back the particle0
+        # If the new position value is more than the height than we move back the particle
         position = propagated_sample[1] + motion_move_distance_with_noise
         if position >= self.position_max:
             propagated_sample[1] -= motion_move_distance_with_noise + (position - self.position_max)
         else:
             propagated_sample[1] = position
 
-        # TODO: modify validate_state
         return self.validate_state(propagated_sample)
 
     # Measurement model
