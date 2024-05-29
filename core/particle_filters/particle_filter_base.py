@@ -207,7 +207,7 @@ class ParticleFilter:
         # If the new position value is more than the height than we move back the particle
         position = propagated_sample[1] + motion_move_distance_with_noise
         if position >= self.position_max:
-            propagated_sample[1] -= motion_move_distance_with_noise + (position - self.position_max)
+            propagated_sample[1] -= 2 * (motion_move_distance_with_noise + (position - self.position_max))
         else:
             propagated_sample[1] = position
 
