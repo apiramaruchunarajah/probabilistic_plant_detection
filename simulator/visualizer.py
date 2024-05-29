@@ -21,17 +21,18 @@ class Visualizer:
             for i, center in enumerate(plant_positions):
                 if self.world.are_coordinates_valid(center[0], center[1]):
                     perspective_coef = center[1] / self.world.height
-                    if plant_types[i] == 0:
-                        cv.circle(self.img, center, int(20 * perspective_coef), color, -1)
-                    elif plant_types[i] == 1:
-                        cv.drawMarker(self.img, center, color, markerType=cv.MARKER_CROSS,
-                                      markerSize=int(50 * perspective_coef), thickness=5)
-                    elif plant_types[i] == 2:
-                        cv.drawMarker(self.img, center, color, markerType=cv.MARKER_TILTED_CROSS,
-                                      markerSize=int(50 * perspective_coef), thickness=5)
-                    else:
-                        cv.drawMarker(self.img, center, color, markerType=cv.MARKER_STAR,
-                                      markerSize=int(50 * perspective_coef), thickness=5)
+                    cv.circle(self.img, center, int(20 * perspective_coef), color, -1)
+                    # if plant_types[i] == 0:
+                    #     cv.circle(self.img, center, int(20 * perspective_coef), color, -1)
+                    # elif plant_types[i] == 1:
+                    #     cv.drawMarker(self.img, center, color, markerType=cv.MARKER_CROSS,
+                    #                   markerSize=int(50 * perspective_coef), thickness=5)
+                    # elif plant_types[i] == 2:
+                    #     cv.drawMarker(self.img, center, color, markerType=cv.MARKER_TILTED_CROSS,
+                    #                   markerSize=int(50 * perspective_coef), thickness=5)
+                    # else:
+                    #     cv.drawMarker(self.img, center, color, markerType=cv.MARKER_STAR,
+                    #                   markerSize=int(50 * perspective_coef), thickness=5)
 
     def draw_particles(self, particles, n):
         for i in range(n):
