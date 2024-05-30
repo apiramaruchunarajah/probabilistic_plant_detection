@@ -202,25 +202,25 @@ class ParticleFilter:
         motion_move_distance_with_noise = np.random.normal(motion_move_distance, self.process_noise[1], 1)[0]
 
         # Getting the new offset using the formula sin = opposé / hypothénuse.
-        offset_displacement = -motion_move_distance_with_noise * np.sin(skew)
+        offset_displacement = -motion_move_distance_with_noise * np.sin(propagated_sample[4])
         offset = np.random.normal(propagated_sample[0] + offset_displacement, self.process_noise[0], 1)[0]
 
         # Getting the new position using the formula cos = adjacent / hypothénuse.
-        position_displacement = motion_move_distance_with_noise * np.cos(skew)
+        position_displacement = motion_move_distance_with_noise * np.cos(propagated_sample[4])
         position = propagated_sample[1] + position_displacement
 
         # If the new position value doesn't respect its constraints than we move back the particular plant of an
         # inter-plant distance.
         if position > self.position_max or offset < self.offset_min or offset > self.offset_max:
             # We move the particle back of inter-plant distance with some noise.
-            new_move_distance = -np.random.normal(inter_plant, self.process_noise[1], 1)[0]
+            new_move_distance = -np.random.normal(propagated_sample[2], self.process_noise[1], 1)[0]
 
             # Getting the new offset.
-            offset_displacement = -new_move_distance * np.sin(skew)
+            offset_displacement = -new_move_distance * np.sin(propagated_sample[4])
             offset = np.random.normal(propagated_sample[0] + offset_displacement, self.process_noise[0], 1)[0]
 
             # Getting the new position.
-            position_displacement = new_move_distance * np.cos(skew)
+            position_displacement = new_move_distance * np.cos(propagated_sample[4])
             position = propagated_sample[1] + position_displacement
 
         propagated_sample[0] = offset
