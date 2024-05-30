@@ -20,7 +20,7 @@ if __name__ == '__main__':
     world = World(500, 700, 10)
 
     # Number of simulated time steps
-    n_time_steps = 30 + 40 + 40
+    n_time_steps = 30 + 40
 
     # Initialize visualizer
     visualizer = Visualizer(world)
@@ -41,7 +41,7 @@ if __name__ == '__main__':
     true_plants_meas_noise_position_std = 7
 
     # Size of a plant : length of the side of a square
-    plant_size = 11
+    plant_size = 2
 
     # Initialize plants
     plants = Plants(world, -700, 400, 80, 110, o=0, nb_rows=7, nb_plant_types=4)
@@ -52,32 +52,39 @@ if __name__ == '__main__':
     # Particle filter settings
     ##
 
-    number_of_particles = 40
+    number_of_particles = 1
     # Limit values for the parameters we track.
     pf_state_limits = [0, world.width,  # Offset
                        world.height - 240, world.height,  # Position
-                       11, 240,  # Inter-plant
+                       11, 240,  # Inter-plant, not too small
                        world.width/25, world.width / 4,  # Inter-row, not too low because get_bottom_plants
                                                          # can take too long /!\
                        -np.pi / 8, np.pi / 8,  # Skew
                        0, 0.8]  # Convergence, close to 1 means parallel lines that can cause issues /!\
 
-    pf_state_limits = [240, 260,
-                       600, 700,
-                       80, 120,
-                       60, 100,
-                       -np.pi/2.4, np.pi/2.4,
+    pf_state_limits = [0, world.width,
+                       0, world.height,
+                       11, world.height / 4,
+                       11, world.height / 2,
+                       -np.pi/6, np.pi/6,
                        0, 0.8]
 
     # Process model noise (zero mean additive Gaussian noise)
     # This noise has a huge impact on the correctness of the particle0 filter
-    motion_model_move_distance_std = 40
-    process_noise = [6,  # Offset
+    motion_model_move_distance_std = 25
+    process_noise = [11,  # Offset
                      motion_model_move_distance_std,  # Position
-                     6,  # Inter-plant
-                     6,  # Inter-row
+                     11,  # Inter-plant
+                     11,  # Inter-row
                      np.pi / 4,  # Skew
                      0.25]  # Convergence
+
+    process_noise = [11,
+                     11,
+                     11,
+                     11,
+                     np.pi / 12,
+                     0.25]
 
     # Probability associated to the measurement image. We have the probability for a pixel
     probability_in = 0.8
