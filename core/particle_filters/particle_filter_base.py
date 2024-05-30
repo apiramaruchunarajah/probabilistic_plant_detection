@@ -68,18 +68,18 @@ class ParticleFilter:
         # Make sure state does not exceed allowed limits
 
         # Validate Offset
-        if state[0] < self.offset_min:
-            state[0] = self.offset_min
-
-        if state[0] > self.offset_max:
-            state[0] = self.offset_max-1
-
-        # Validate Position
-        if state[1] > self.position_max:
-            state[1] = self.position_max-1
-
-        if state[1] < self.position_min:
-            state[1] = self.position_min
+        # if state[0] < self.offset_min:
+        #     state[0] = self.offset_min
+        # 
+        # if state[0] > self.offset_max:
+        #     state[0] = self.offset_max - 1
+        # 
+        # # Validate Position
+        # while state[1] < self.position_min:
+        #     state[1] += (self.position_max - self.position_min)
+        # 
+        # if state[1] > self.position_max:
+        #     state[1] -= (self.position_max - self.position_min)
 
         # Validate Inter-plant
         if state[2] > self.inter_plant_max:
@@ -96,8 +96,11 @@ class ParticleFilter:
             state[3] = self.inter_row_min
 
         # Validate skew
-        if state[4] < self.skew_min or state[4] > self.skew_max:
-            state[4] = (self.skew_max - self.skew_min) / 2
+        if state[4] < self.skew_min:
+            state[4] = self.skew_min
+
+        if state[4] > self.skew_max:
+            state[4] = self.skew_max
 
         # Validate convergence:
         if state[5] > self.convergence_max:
@@ -187,29 +190,45 @@ class ParticleFilter:
         # 1. Parameters that are not supposed to be modified
         # Offset, inter-plant, inter-row, skew and convergence are supposed to stay the same. They are equal to their
         # value at the previous time step with some additive zero mean Gaussian noise.
-        offset = np.random.normal(propagated_sample[0], self.process_noise[0], 1)[0]
         inter_plant = np.random.normal(propagated_sample[2], self.process_noise[2], 1)[0]
         inter_row = np.random.normal(propagated_sample[3], self.process_noise[3], 1)[0]
         skew = np.random.normal(propagated_sample[4], self.process_noise[4], 1)[0]
         convergence = np.random.normal(propagated_sample[5], self.process_noise[5], 1)[0]
 
+        # 2. Parameters that are supposed to be modified
+        # Position and offset are changing during the propagation.
+        # Their new values for the propagated sample is computed using the forward motion combined with additive
+        # zero mean Gaussian noise.
+        motion_move_distance_with_noise = np.random.normal(motion_move_distance, self.process_noise[1], 1)[0]
+
+        # Getting the new offset using the formula sin = opposé / hypothénuse.
+        offset_displacement = -motion_move_distance_with_noise * np.sin(skew)
+        offset = np.random.normal(propagated_sample[0] + offset_displacement, self.process_noise[0], 1)[0]
+
+        # Getting the new position using the formula cos = adjacent / hypothénuse.
+        position_displacement = motion_move_distance_with_noise * np.cos(skew)
+        position = propagated_sample[1] + position_displacement
+
+        # If the new position value doesn't respect its constraints than we move back the particular plant of an
+        # inter-plant distance.
+        if position > self.position_max or offset < self.offset_min or offset > self.offset_max:
+            # We move the particle back of inter-plant distance with some noise.
+            new_move_distance = -np.random.normal(inter_plant, self.process_noise[1], 1)[0]
+
+            # Getting the new offset.
+            offset_displacement = -new_move_distance * np.sin(skew)
+            offset = np.random.normal(propagated_sample[0] + offset_displacement, self.process_noise[0], 1)[0]
+
+            # Getting the new position.
+            position_displacement = new_move_distance * np.cos(skew)
+            position = propagated_sample[1] + position_displacement
+
         propagated_sample[0] = offset
+        propagated_sample[1] = position
         propagated_sample[2] = inter_plant
         propagated_sample[3] = inter_row
         propagated_sample[4] = skew
         propagated_sample[5] = convergence
-
-        # 2. Parameters that are supposed to be modified
-        # The value of position for the propagated sample is computed using the forward motion combined with additive
-        # zero mean Gaussian noise.
-        motion_move_distance_with_noise = np.random.normal(motion_move_distance, self.process_noise[1], 1)[0]
-
-        # If the new position value is more than the height than we move back the particle
-        position = propagated_sample[1] + motion_move_distance_with_noise
-        if position >= self.position_max:
-            propagated_sample[1] -= 2 * (motion_move_distance_with_noise + (position - self.position_max))
-        else:
-            propagated_sample[1] = position
 
         return self.validate_state(propagated_sample)
 
@@ -231,10 +250,11 @@ class ParticleFilter:
             print("Compute likelihood can't be done because the particle doesn't return a list of plant positions.")
             return 0
 
-        # IN MAIN WE ONLY HAVE ONE PARTICLE FOR THE MOMENT
-
         # Initialize measurement likelihood for the particle/sample.
         likelihood_sample = 1.0
+
+        # Initialize number of pixels counter
+        total_nb_pixels = 0
 
         # Computing for each expected plant position its probability of really being a position where a plant is.
         for plant in expected_plant_positions:
@@ -264,8 +284,10 @@ class ParticleFilter:
                                        / total_nb_surrounding_pixels)
 
             likelihood_sample *= pr_plant_given_position
+            total_nb_pixels += total_nb_surrounding_pixels
 
-        return likelihood_sample
+        print("Likelihood : {}".format(likelihood_sample))
+        return np.power(likelihood_sample, (1/total_nb_pixels))
 
     @abstractmethod
     def update(self, plants_motion_move_distance, measurement, plant_size):
