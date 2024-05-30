@@ -121,6 +121,5 @@ class Visualizer:
     def measure(self):
         """
         Returns its image
-        /!Looks at its image and returns the parameters offset, position, convergence, ....!\
         """
         return self.img
