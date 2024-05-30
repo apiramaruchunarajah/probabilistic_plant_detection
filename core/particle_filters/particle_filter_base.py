@@ -211,7 +211,7 @@ class ParticleFilter:
 
         # If the new position value doesn't respect its constraints than we move back the particular plant of an
         # inter-plant distance.
-        if position > self.position_max or offset < self.offset_min or offset > self.offset_max:
+        if position > self.position_max:
             # We move the particle back of inter-plant distance with some noise.
             new_move_distance = -np.random.normal(propagated_sample[2], self.process_noise[1], 1)[0]
 
@@ -256,38 +256,54 @@ class ParticleFilter:
         # Initialize number of pixels counter
         total_nb_pixels = 0
 
+        # Invalid plants
+        invalid_plants = 0
+
         # Computing for each expected plant position its probability of really being a position where a plant is.
         for plant in expected_plant_positions:
-            # Initializing the total number of pixels in the surrounding and the number of green pixels among them.
-            total_nb_surrounding_pixels = 0
-            nb_green_pixels = 0
+            if not self.world.are_coordinates_valid(plant[0], plant[1]):
+                invalid_plants += 1
 
-            # Going through all the surrounding pixels.
-            for y in range(-int(plant_size / 2), int(plant_size / 2)):
-                for x in range(-int(plant_size / 2), int(plant_size / 2)):
-                    x_coordinate = int(plant[0] - x)
-                    y_coordinate = int(plant[1] - y)
+            else:
+                # Initializing the total number of pixels in the surrounding and the number of green pixels among them.
+                total_nb_surrounding_pixels = 0
+                nb_green_pixels = 0
 
-                    if self.world.are_coordinates_valid(x_coordinate, y_coordinate):
-                        measured_pixel = measurement[y_coordinate][x_coordinate]
-                        total_nb_surrounding_pixels += 1
-                        # Checking if the pixel is green.
-                        if measured_pixel[1] == 255:
-                            nb_green_pixels += 1
+                # Going through all the surrounding pixels.
+                for y in range(-int(plant_size / 2), int(plant_size / 2)):
+                    for x in range(-int(plant_size / 2), int(plant_size / 2)):
+                        x_coordinate = int(plant[0] - x)
+                        y_coordinate = int(plant[1] - y)
 
-            # Getting the number of pixels other than green in that surrounding.
-            nb_other_pixels = total_nb_surrounding_pixels - nb_green_pixels
+                        if self.world.are_coordinates_valid(x_coordinate, y_coordinate):
+                            measured_pixel = measurement[y_coordinate][x_coordinate]
+                            total_nb_surrounding_pixels += 1
+                            # Checking if the pixel is green.
+                            if measured_pixel[1] == 255:
+                                nb_green_pixels += 1
 
-            # Computing the probability associated to the plant position.
-            pr_plant_given_position = ((nb_green_pixels * self.measurement_uncertainty[0] +
-                                        nb_other_pixels * self.measurement_uncertainty[1])
-                                       / total_nb_surrounding_pixels)
+                # Getting the number of pixels other than green in that surrounding.
+                nb_other_pixels = total_nb_surrounding_pixels - nb_green_pixels
 
-            likelihood_sample *= pr_plant_given_position
-            total_nb_pixels += total_nb_surrounding_pixels
+                if total_nb_surrounding_pixels <= 0:
+                    print("Plant : {}".format(plant))
 
-        print("Likelihood : {}".format(likelihood_sample))
-        return np.power(likelihood_sample, (1/total_nb_pixels))
+                # Computing the probability associated to the plant position.
+                pr_plant_given_position = ((nb_green_pixels * self.measurement_uncertainty[0] +
+                                            nb_other_pixels * self.measurement_uncertainty[1])
+                                           / total_nb_surrounding_pixels)
+
+                likelihood_sample *= pr_plant_given_position
+                total_nb_pixels += total_nb_surrounding_pixels
+
+        if invalid_plants > 0:
+            print("INVALID plants : {}".format(invalid_plants))
+
+        if total_nb_pixels <= 0:
+            return 0
+        else:
+            print("Likelihood : {}".format(np.power(likelihood_sample, (1/total_nb_pixels))))
+            return np.power(likelihood_sample, (1/total_nb_pixels))
 
     @abstractmethod
     def update(self, plants_motion_move_distance, measurement, plant_size):
