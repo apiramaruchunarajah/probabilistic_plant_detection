@@ -16,7 +16,7 @@ from core.particle_filters.particle_filter_sir import ParticleFilterSIR
 
 if __name__ == '__main__':
 
-    np.random.seed(44)
+    np.random.seed(24)
 
     # Initialize world
     world = World(500, 700, 10)
@@ -43,7 +43,7 @@ if __name__ == '__main__':
     true_plants_meas_noise_position_std = 7
 
     # Size of a plant : length of the side of a square
-    plant_size = 4
+    plant_size = 11
 
     # Initialize plants
     plants = Plants(world, -700, 400, 80, 11, o=0, nb_rows=7, nb_plant_types=4)
@@ -54,7 +54,7 @@ if __name__ == '__main__':
     # Particle filter settings
     ##
 
-    number_of_particles = 17
+    number_of_particles = 70
     # Limit values for the parameters we track.
     pf_state_limits = [0, world.width,  # Offset
                        world.height - 240, world.height,  # Position
@@ -81,13 +81,12 @@ if __name__ == '__main__':
                      np.pi / 12,  # Skew
                      0.25]  # Convergence
 
-    process_noise = [11,
-                     11,
-                     25,
-                     25,  # ~
-                     np.pi/256,
-                     0.11]
-
+    process_noise = [40,
+                     40,
+                     4,
+                     40,  # ~
+                     np.pi/8,
+                     0.04]
 
 
     # Probability associated to the measurement image. We have the probability for a pixel
@@ -121,6 +120,10 @@ if __name__ == '__main__':
         # Simulate plants motion (required motion will not exactly be achieved)
         plants.move(plants_setpoint_motion_move_distance)
 
+        # Visualization
+        # Drawing plants
+        visualizer.draw(plants, particle_filter_sir.particles, particle_filter_sir.n_particles)
+
         # Simulate measurement
         meas_image = visualizer.measure()
 
@@ -128,13 +131,9 @@ if __name__ == '__main__':
         particle_filter_sir.update(plants_setpoint_motion_move_distance, meas_image, plant_size)
 
         # # Show maximum normalized particle weight (converges to 1.0) and correctness (0 = correct)
-        w_max = particle_filter_sir.get_max_weight()
-        max_weights.append(w_max)
-        print("Time step {}: max weight: {}".format(i, w_max))
-
-        # Visualization
-        # Drawing plants
-        visualizer.draw(plants, particle_filter_sir.particles, particle_filter_sir.n_particles)
+        # w_max = particle_filter_sir.get_max_weight()
+        # max_weights.append(w_max)
+        # print("Time step {}: max weight: {}".format(i, w_max))
 
         # Drawing a particle
         avg_state = particle_filter_sir.get_average_state()
