@@ -16,11 +16,13 @@ from core.particle_filters.particle_filter_sir import ParticleFilterSIR
 
 if __name__ == '__main__':
 
+    np.random.seed(24)
+
     # Initialize world
     world = World(500, 700, 10)
 
     # Number of simulated time steps
-    n_time_steps = 30 + 40 + 40
+    n_time_steps = 30 + 40
 
     # Initialize visualizer
     visualizer = Visualizer(world)
@@ -44,7 +46,7 @@ if __name__ == '__main__':
     plant_size = 11
 
     # Initialize plants
-    plants = Plants(world, -700, 400, 80, 110, o=0, nb_rows=7, nb_plant_types=4)
+    plants = Plants(world, -700, 400, 80, 11, o=0, nb_rows=7, nb_plant_types=4)
     plants.setStandardDeviations(true_plants_motion_move_distance_std, true_plants_meas_noise_position_std)
     plants.generate_plants()
 
@@ -52,32 +54,40 @@ if __name__ == '__main__':
     # Particle filter settings
     ##
 
-    number_of_particles = 40
+    number_of_particles = 70
     # Limit values for the parameters we track.
     pf_state_limits = [0, world.width,  # Offset
                        world.height - 240, world.height,  # Position
-                       11, 240,  # Inter-plant
+                       11, 240,  # Inter-plant, not too small
                        world.width/25, world.width / 4,  # Inter-row, not too low because get_bottom_plants
                                                          # can take too long /!\
                        -np.pi / 8, np.pi / 8,  # Skew
                        0, 0.8]  # Convergence, close to 1 means parallel lines that can cause issues /!\
 
-    pf_state_limits = [240, 260,
-                       600, 700,
-                       80, 120,
-                       60, 100,
-                       -np.pi/2.4, np.pi/2.4,
+    pf_state_limits = [0, world.width,
+                       0, world.height,
+                       11, world.height/4,
+                       world.width/8, world.width/2,  # max 8 rows, min 2 rows
+                       -np.pi/6, np.pi/6,
                        0, 0.8]
 
     # Process model noise (zero mean additive Gaussian noise)
     # This noise has a huge impact on the correctness of the particle0 filter
-    motion_model_move_distance_std = 40
-    process_noise = [6,  # Offset
+    motion_model_move_distance_std = 25
+    process_noise = [11,  # Offset
                      motion_model_move_distance_std,  # Position
-                     6,  # Inter-plant
-                     6,  # Inter-row
-                     np.pi / 4,  # Skew
+                     11,  # Inter-plant
+                     11,  # Inter-row
+                     np.pi / 12,  # Skew
                      0.25]  # Convergence
+
+    process_noise = [40,
+                     40,
+                     4,
+                     40,  # ~
+                     np.pi/8,
+                     0.04]
+
 
     # Probability associated to the measurement image. We have the probability for a pixel
     probability_in = 0.8
@@ -110,30 +120,28 @@ if __name__ == '__main__':
         # Simulate plants motion (required motion will not exactly be achieved)
         plants.move(plants_setpoint_motion_move_distance)
 
+        # Visualization
+        # Drawing plants
+        visualizer.draw(plants, particle_filter_sir.particles, particle_filter_sir.n_particles)
+
         # Simulate measurement
         meas_image = visualizer.measure()
 
         # Update SIR particle filter
         particle_filter_sir.update(plants_setpoint_motion_move_distance, meas_image, plant_size)
 
-        # # Show maximum normalized particle0 weight (converges to 1.0) and correctness (0 = correct)
+        # # Show maximum normalized particle weight (converges to 1.0) and correctness (0 = correct)
         # w_max = particle_filter_sir.get_max_weight()
         # max_weights.append(w_max)
-        # # Distance between the measured value and the average particle0 value
-        # correctness = np.sqrt(np.square(particle_filter_sir.get_average_state() - meas_position))
-        # print("Time step {}: max weight: {}, correctness: {}".format(i, w_max, correctness))
-
-        # Visualization
-        # Drawing plants
-        visualizer.draw(plants, particle_filter_sir.particles, particle_filter_sir.n_particles)
+        # print("Time step {}: max weight: {}".format(i, w_max))
 
         # Drawing a particle
         avg_state = particle_filter_sir.get_average_state()
         avg_particle = Particle(world, avg_state[0], avg_state[1], avg_state[2], avg_state[3],
                                 avg_state[4], avg_state[5])
         visualizer.draw_complete_particle(avg_particle)
-        print("Avg skew : {}, avg convergence : {}, avg inter-plant : {}"
-              .format(avg_particle.skew, avg_particle.convergence, avg_particle.ip_at_bottom))
+        #print("Avg skew : {}, avg convergence : {}, avg inter-plant : {}"
+        #      .format(avg_particle.skew, avg_particle.convergence, avg_particle.ip_at_bottom))
 
         # # Drawing the first particle
         # state = particle_filter_sir.particles[0][1]
