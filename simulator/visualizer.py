@@ -61,21 +61,28 @@ class Visualizer:
 
         # Getting the coordinates of every plant to draw
         plants = particle.get_all_plants()
-
+        
         if plants == -1:
             print("Visualizer: Can not draw the particle0")
             return
-
+        
         # Drawing every plant
         for center in plants:
             # Drawing parameters
             color = (255, 0, 0)
             radius = 6
-
+        
             try:
                 cv.circle(self.img, (int(center[0]), int(center[1])), radius, color, -1)
             except:
                 print("Problematic center : {}".format(center))
+
+        # Drawing parameters
+        # color = (255, 0, 0)
+        # radius = 6
+        #
+        # center = np.asarray([particle.offset, particle.position])
+        # cv.circle(self.img, (int(center[0]), int(center[1])), radius, color, -1)
 
     def draw(self, plants, particles, n_particles):
         # Empty image
@@ -117,23 +124,3 @@ class Visualizer:
         /!Looks at its image and returns the parameters offset, position, convergence, ....!\
         """
         return self.img
-
-    def get_particular_plant(self):
-        green_pixels = self.get_green_pixels()
-
-        print("Green pixels : {}".format(green_pixels.shape))
-
-        if green_pixels.shape[0] > 0 :
-            print("Row 0 coordinates shape : {}".format(green_pixels[0]))
-        return True
-
-    def get_green_pixels(self):
-        """
-        Self.img is a binary image.
-        Returns the pixels (probably) corresponding to plants.
-        """
-        green_pixels = np.where(self.img != 0)
-
-        coordinates = np.array(list(zip(green_pixels[1], green_pixels[0])))
-
-        return coordinates
