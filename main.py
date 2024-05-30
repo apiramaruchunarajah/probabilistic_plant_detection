@@ -16,6 +16,8 @@ from core.particle_filters.particle_filter_sir import ParticleFilterSIR
 
 if __name__ == '__main__':
 
+    np.random.seed(44)
+
     # Initialize world
     world = World(500, 700, 10)
 
@@ -41,10 +43,10 @@ if __name__ == '__main__':
     true_plants_meas_noise_position_std = 7
 
     # Size of a plant : length of the side of a square
-    plant_size = 2
+    plant_size = 4
 
     # Initialize plants
-    plants = Plants(world, -700, 400, 80, 110, o=0, nb_rows=7, nb_plant_types=4)
+    plants = Plants(world, -700, 400, 80, 11, o=0, nb_rows=7, nb_plant_types=4)
     plants.setStandardDeviations(true_plants_motion_move_distance_std, true_plants_meas_noise_position_std)
     plants.generate_plants()
 
@@ -52,7 +54,7 @@ if __name__ == '__main__':
     # Particle filter settings
     ##
 
-    number_of_particles = 1
+    number_of_particles = 17
     # Limit values for the parameters we track.
     pf_state_limits = [0, world.width,  # Offset
                        world.height - 240, world.height,  # Position
@@ -64,8 +66,8 @@ if __name__ == '__main__':
 
     pf_state_limits = [0, world.width,
                        0, world.height,
-                       11, world.height / 4,
-                       11, world.height / 2,
+                       11, world.height/4,
+                       world.width/8, world.width/2,  # max 8 rows, min 2 rows
                        -np.pi/6, np.pi/6,
                        0, 0.8]
 
@@ -76,15 +78,17 @@ if __name__ == '__main__':
                      motion_model_move_distance_std,  # Position
                      11,  # Inter-plant
                      11,  # Inter-row
-                     np.pi / 4,  # Skew
+                     np.pi / 12,  # Skew
                      0.25]  # Convergence
 
     process_noise = [11,
                      11,
-                     11,
-                     11,
-                     np.pi / 12,
-                     0.25]
+                     25,
+                     25,  # ~
+                     np.pi/256,
+                     0.11]
+
+
 
     # Probability associated to the measurement image. We have the probability for a pixel
     probability_in = 0.8
@@ -123,12 +127,10 @@ if __name__ == '__main__':
         # Update SIR particle filter
         particle_filter_sir.update(plants_setpoint_motion_move_distance, meas_image, plant_size)
 
-        # # Show maximum normalized particle0 weight (converges to 1.0) and correctness (0 = correct)
-        # w_max = particle_filter_sir.get_max_weight()
-        # max_weights.append(w_max)
-        # # Distance between the measured value and the average particle0 value
-        # correctness = np.sqrt(np.square(particle_filter_sir.get_average_state() - meas_position))
-        # print("Time step {}: max weight: {}, correctness: {}".format(i, w_max, correctness))
+        # # Show maximum normalized particle weight (converges to 1.0) and correctness (0 = correct)
+        w_max = particle_filter_sir.get_max_weight()
+        max_weights.append(w_max)
+        print("Time step {}: max weight: {}".format(i, w_max))
 
         # Visualization
         # Drawing plants
@@ -139,8 +141,8 @@ if __name__ == '__main__':
         avg_particle = Particle(world, avg_state[0], avg_state[1], avg_state[2], avg_state[3],
                                 avg_state[4], avg_state[5])
         visualizer.draw_complete_particle(avg_particle)
-        print("Avg skew : {}, avg convergence : {}, avg inter-plant : {}"
-              .format(avg_particle.skew, avg_particle.convergence, avg_particle.ip_at_bottom))
+        #print("Avg skew : {}, avg convergence : {}, avg inter-plant : {}"
+        #      .format(avg_particle.skew, avg_particle.convergence, avg_particle.ip_at_bottom))
 
         # # Drawing the first particle
         # state = particle_filter_sir.particles[0][1]
