@@ -5,6 +5,8 @@ import numpy as np
 # Import of the Particle class
 from simulator.particle import Particle
 
+import cv2 as cv
+
 
 # Modified code from :
 # Jos Elfring, Elena Torta, and René van de Molengraft.
@@ -259,6 +261,9 @@ class ParticleFilter:
         # Invalid plants
         invalid_plants = 0
 
+        img = np.zeros((self.world.height, self.world.width, 3), np.uint8)
+        pixels = []
+
         # Computing for each expected plant position its probability of really being a position where a plant is.
         for plant in expected_plant_positions:
             if not self.world.are_coordinates_valid(plant[0], plant[1]):
@@ -281,6 +286,7 @@ class ParticleFilter:
                             # Checking if the pixel is green.
                             if measured_pixel[1] == 255:
                                 nb_green_pixels += 1
+                                pixels.append(np.asarray([x_coordinate, y_coordinate]))
 
                 # Getting the number of pixels other than green in that surrounding.
                 nb_other_pixels = total_nb_surrounding_pixels - nb_green_pixels
@@ -296,13 +302,20 @@ class ParticleFilter:
                 likelihood_sample *= pr_plant_given_position
                 total_nb_pixels += total_nb_surrounding_pixels
 
-        if invalid_plants > 0:
-            print("INVALID plants : {}".format(invalid_plants))
+        for pixel in pixels:
+            img[pixel[1]][pixel[0]] = (0, 255, 0)
+
+        print("Green pixels : {}".format(len(pixels)))
+        cv.imshow("Green pixels", img)
+        cv.waitKey(0)
+
+        return len(pixels)
 
         if total_nb_pixels <= 0:
             return 0
         else:
             print("Likelihood : {}".format(np.power(likelihood_sample, (1/total_nb_pixels))))
+            #return likelihood_sample
             return np.power(likelihood_sample, (1/total_nb_pixels))
 
     @abstractmethod
