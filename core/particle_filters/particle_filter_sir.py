@@ -40,13 +40,15 @@ class ParticleFilterSIR(ParticleFilter):
             propagated_state = self.propagate_sample(par[1], plants_motion_move_distance)
 
             # Compute current particle's weight
-            weight = par[0] * self.compute_likelihood(propagated_state, measurement, plant_size)
+            weight = self.compute_likelihood(propagated_state, measurement, plant_size)
 
             # Store
             new_particles.append([weight, propagated_state])
             #new_particles.append([par[0], propagated_state])
 
         # Update particles
+        print("Particles before weight normalization.")
+        self.print_particles()
         self.particles = self.normalize_weights(new_particles)
 
         # Resample if needed
