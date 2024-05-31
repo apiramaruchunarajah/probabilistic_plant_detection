@@ -321,7 +321,7 @@ class ParticleFilter:
         # Computing the probability of z given x and knowing measurement_probability_in and out.
         # pr_z_given_x
         likelihood_sample = (pr_zi_in_given_x + pr_zi_out_given_x) / (nb_in + nb_out)
-        print("Likelihood_sample, in + out: {}, {}".format(likelihood_sample, nb_in+nb_out))
+        print("Likelihood_sample, in + out: {}".format(likelihood_sample))
         return likelihood_sample
 
 
