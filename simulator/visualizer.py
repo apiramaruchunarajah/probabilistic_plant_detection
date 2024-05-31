@@ -60,7 +60,7 @@ class Visualizer:
     def draw_complete_particle(self, particle):
 
         # Getting the coordinates of every plant to draw
-        plants = particle.get_all_plants()
+        plants = particle.get_all_plants_2()
         
         if plants == -1:
             print("Visualizer: Can not draw the particle0")
@@ -122,4 +122,11 @@ class Visualizer:
         """
         Returns its image
         """
+
+        # probability_array = np.zeros((self.world.height, self.world.width, 3), np.uint8)
+        # for y in range(self.world.height):
+        #     for x in range(self.world.width):
+        #         probability_array[y][x] = (0, 255, 0)
+        # 
+        # return probability_array
         return self.img
