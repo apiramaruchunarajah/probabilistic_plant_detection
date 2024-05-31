@@ -13,14 +13,14 @@ class Plants:
         # As we directly give the coordinates of the vanishing point, we don't need the parameters skew or convergence.
         self.inter_row_distance = ir
         self.inter_plant_distance = ip
-        self.offset = o
-        # Offset is between -(width/2) and +(width/2), it doesn't correspond to the definition of offset used to create
+        self.offsett = o
+        # Offset is between -(width/2) and +(width/2), it doesn't correspond to the definition of offsett used to create
         # a particle (which in that case goes from 0 to width and just corresponds to the x coordinate of the particular
         # plant).
 
         # Field parameters
         self.vp_height = vp_height
-        self.vp_width = vp_width + self.offset
+        self.vp_width = vp_width + self.offsett
         self.vanishing_point = (vp_width, vp_height)
 
         # Plants generation parameters
@@ -45,13 +45,104 @@ class Plants:
         self.std_move_distance = std_move_distance
         self.std_meas_position = std_meas_position
 
+    def get_inter_plant_distance(self, y):
+        """
+        As, in the image perspective, the rows are crossing and not parallel, the inter-plant distance is not constant
+        on the y axe.
+        Takes a vertical position and the coordinates of the vanishing point.
+        Returns the inter-plant distance at this position.
+        """
+        ip = self.inter_plant_distance * (self.vanishing_point[1] - y) / (self.vanishing_point[1] - self.world.height)
+
+        return ip
+
+    def get_row_plants(self, bottom_plant):
+        """
+        Returns the coordinates of all the plants located in a row and that are within the image. To do so,
+        the algorithm starts at the bottom plant and adds a plant on the line using the inter-plant distance,
+        then starts again using this plant as starting point. It ends when we are at the end of the image.
+        """
+        # List of plants located in the row
+        row_plants = []
+
+        # Distance between the bottom plant of the row and the vanishing point
+        d = np.sqrt(np.square(self.vanishing_point[0] - bottom_plant[0])
+                    + np.square(self.vanishing_point[1] - bottom_plant[1]))
+
+        # Ratio between the inter-plant distance at the bottom plant and the total distance d
+        ip = self.get_inter_plant_distance(bottom_plant[1], self.vanishing_point)
+        t = ip / d
+
+        # Coordinates of the current plant (in other word while loop variable)
+        current_plant = bottom_plant
+
+        # If the inter-plant becomes too small then it means we are very close to the top of the image, so we define the
+        # minimal inter-plant distance at which we draw the plants.
+        min_ip = 4
+
+        # If 0 < t or t > 1 then it means that the next plant we want to add is outside the image.
+        while 0 <= t <= 1 and ip >= min_ip:
+            # Coordinates of the next plant on the row
+            next_plant_x = (1 - t) * current_plant[0] + t * self.vanishing_point[0]
+            next_plant_y = (1 - t) * current_plant[1] + t * self.vanishing_point[1]
+            next_plant = np.asarray([int(next_plant_x), int(next_plant_y)])
+
+            # Appending the next plant
+            if self.world.are_coordinates_valid(next_plant[0], next_plant[1]):
+                row_plants.append(next_plant)
+
+            current_plant = next_plant
+
+            # Computing the new value of t
+            # print("Current plant : {}".format(current_plant))
+            # print("Vanishing point : {}".format(vanishing_point))
+            # print("t : {}".format(t))
+            d = np.sqrt(np.square(self.vanishing_point[0] - current_plant[0])
+                        + np.square(self.vanishing_point[1] - current_plant[1]))
+
+            # The new inter-plant distance
+            ip = self.get_inter_plant_distance(current_plant[1], self.vanishing_point)
+            t = ip / d
+
+        return row_plants
+
+    def get_bottom_plants(self, offset, position):
+        # List of coordinates to be returned
+        horizontal_neighbors = []
+
+        # Number of left and right neighbors
+        nb_left_neighbours = 0
+        nb_right_neighbours = 0
+
+        # Appending the left neighbors of the particular plant
+        leftOffset = self.offset - self.inter_row_distance
+        while self.world.are_coordinates_valid(leftOffset, position):
+            center = np.asarray([leftOffset, self.position])
+            horizontal_neighbors.append(center)
+            nb_left_neighbours += 1
+            leftOffset -= self.ir_at_bottom
+
+        # Appending the particular plant
+        center = np.asarray([self.offset, self.position])
+        horizontal_neighbors.append(center)
+
+        # Appending right neighbors of the particular plant
+        rightOffset = self.offset + self.ir_at_bottom
+        while self.world.are_coordinates_valid(rightOffset, self.position):
+            center = np.asarray([rightOffset, self.position])
+            horizontal_neighbors.append(center)
+            nb_right_neighbours += 1
+            rightOffset += self.ir_at_bottom
+
+        return horizontal_neighbors, nb_left_neighbours, nb_right_neighbours
+
     def generate_plants(self):
         for i in range(self.nb_rows):
             # Empty image
             img = np.zeros((self.world.height, self.world.width), np.uint8)
 
             # Get position of lines crossing in the vanishing point
-            cv.line(img, (i * self.inter_row_distance + self.offset, self.world.height), self.vanishing_point,
+            cv.line(img, (i * self.inter_row_distance + self.offsett, self.world.height), self.vanishing_point,
                     255, 1)
             coordinates = np.where(img != 0)
             row_coordinates = np.array(list(zip(coordinates[1], coordinates[0])))
@@ -62,6 +153,7 @@ class Plants:
             nb_plants = np.random.randint(np.floor(0.70 * self.max_number_plants_per_row),
                                           self.max_number_plants_per_row)
             nb_plants = int(self.max_number_plants_per_row)
+
             # random positions for each plant
             random_selection = np.random.choice(np.arange(self.vp_height, self.world.height, self.inter_plant_distance),
                                                 nb_plants, replace=False)
