@@ -16,7 +16,7 @@ from core.particle_filters.particle_filter_sir import ParticleFilterSIR
 
 if __name__ == '__main__':
 
-    np.random.seed(24)
+    # np.random.seed(40)
 
     # Initialize world
     world = World(500, 700, 10)
@@ -43,10 +43,10 @@ if __name__ == '__main__':
     true_plants_meas_noise_position_std = 7
 
     # Size of a plant : length of the side of a square
-    plant_size = 11
+    plant_size = 6
 
     # Initialize plants
-    plants = Plants(world, -700, 400, 80, 11, o=0, nb_rows=7, nb_plant_types=4)
+    plants = Plants(world, -100, 400, 160, 110, o=0, nb_rows=4, nb_plant_types=4)
     plants.setStandardDeviations(true_plants_motion_move_distance_std, true_plants_meas_noise_position_std)
     plants.generate_plants()
 
@@ -54,7 +54,7 @@ if __name__ == '__main__':
     # Particle filter settings
     ##
 
-    number_of_particles = 70
+    number_of_particles = 7
     # Limit values for the parameters we track.
     pf_state_limits = [0, world.width,  # Offset
                        world.height - 240, world.height,  # Position
@@ -64,12 +64,20 @@ if __name__ == '__main__':
                        -np.pi / 8, np.pi / 8,  # Skew
                        0, 0.8]  # Convergence, close to 1 means parallel lines that can cause issues /!\
 
-    pf_state_limits = [0, world.width,
-                       0, world.height,
-                       11, world.height/4,
-                       world.width/8, world.width/2,  # max 8 rows, min 2 rows
-                       -np.pi/6, np.pi/6,
-                       0, 0.8]
+    # pf_state_limits = [0, world.width,
+    #                    0, world.height,
+    #                    11, world.height/4,
+    #                    world.width/8, world.width/2,  # max 8 rows, min 2 rows
+    #                    -np.pi/6, np.pi/6,
+    #                    0, 0.8]
+
+    pf_state_limits = [world.width-110, world.width+110,  # Offset
+                       world.height - 100, world.height,  # Position
+                       90, 130,  # Inter-plant, not too small
+                       60, 100,  # Inter-row, not too low because get_bottom_plants
+                       # can take too long /!\
+                       -np.pi / 6, np.pi / 6,  # Skew
+                       0, 0.8]  # Convergence, close to 1 means parallel lines that can cause issues /!\
 
     # Process model noise (zero mean additive Gaussian noise)
     # This noise has a huge impact on the correctness of the particle0 filter
@@ -81,16 +89,16 @@ if __name__ == '__main__':
                      np.pi / 12,  # Skew
                      0.25]  # Convergence
 
-    process_noise = [40,
+    process_noise = [25,
                      40,
-                     4,
-                     40,  # ~
+                     10,
+                     10,  # ~
                      np.pi/8,
-                     0.04]
+                     0.25]
 
 
     # Probability associated to the measurement image. We have the probability for a pixel
-    probability_in = 0.8
+    probability_in = 0.99
     probability_out = 0.02
     measurement_uncertainty = [probability_in, probability_out]
 
@@ -142,6 +150,11 @@ if __name__ == '__main__':
         visualizer.draw_complete_particle(avg_particle)
         #print("Avg skew : {}, avg convergence : {}, avg inter-plant : {}"
         #      .format(avg_particle.skew, avg_particle.convergence, avg_particle.ip_at_bottom))
+
+        # # Drawing every particle
+        # for par in particle_filter_sir.particles:
+        #     particle = Particle(world, par[1][0], par[1][1], par[1][2], par[1][3], par[1][4], par[1][5])
+        #     visualizer.draw_complete_particle(particle)
 
         # # Drawing the first particle
         # state = particle_filter_sir.particles[0][1]
