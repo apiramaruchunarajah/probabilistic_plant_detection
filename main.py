@@ -152,12 +152,12 @@ if __name__ == '__main__':
         #print("Avg skew : {}, avg convergence : {}, avg inter-plant : {}"
         #      .format(avg_particle.skew, avg_particle.convergence, avg_particle.ip_at_bottom))
 
-        # nb = 0
-        # # Drawing every particle
-        # for par in particle_filter_sir.particles:
-        #     # nb += 25
-        #     particle = Particle(world, par[1][0], par[1][1], par[1][2], par[1][3], par[1][4], par[1][5])
-        #     visualizer.draw_complete_particle(particle, (0, nb, 255), 6)
+        nb = 0
+        # Drawing every particle
+        for par in particle_filter_sir.particles:
+            # nb += 25
+            particle = Particle(world, par[1][0], par[1][1], par[1][2], par[1][3], par[1][4], par[1][5])
+            visualizer.draw_complete_particle(particle, (0, nb, 255), 6)
 
         # Showing the image
         cv.imshow("Crop rows", visualizer.img)
