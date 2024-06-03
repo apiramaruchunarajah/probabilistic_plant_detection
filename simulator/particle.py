@@ -260,45 +260,6 @@ class Particle:
         # Appending bottom plants
         plants.extend(bottom_plants)
 
-        # # Getting the crossing point for each row : point of intersection between a row and the top of the image.
-        # top_crossing_points = self.get_all_top_crossing_points(nb_left_plants, nb_right_plants)
-        #
-        # # Getting the vanishing point
-        # # We could take any two plants to compute the vanishing point, here plant 0 and 1
-        # if len(bottom_plants) < 2 or len(top_crossing_points) < 2:
-        #     print("Can not compute the vanishing point, bottom plants : {}, top crossing points : {}."
-        #           .format(bottom_plants, top_crossing_points))
-        #     return plants
-        #
-        # vanishing_point = self.get_vanishing_point(bottom_plants, top_crossing_points)
-        #
-        # # Getting all the remaining plants row by row.
-        # # For each row
-        # for i in range(len(bottom_plants)):
-        #     bottom_plant = bottom_plants[i]
-        #
-        #     # Getting the coordinates of the plants located in the row
-        #     row_plants = self.get_row_plants(bottom_plant, vanishing_point)
-        #
-        #     # Appending the plants located in the row
-        #     plants.extend(row_plants)
-
-        return plants
-
-    def get_all_plants_2(self):
-        """
-        Returns a list containing the coordinates of all the plants that the image created by the particle0 contains
-        regarding its field parameters.
-        """
-        # List of all plants coordinates
-        plants = []
-
-        # Getting bottom plants coordinates and the number of right and left plants
-        bottom_plants, nb_left_plants, nb_right_plants = self.get_bottom_plants()
-
-        # Appending bottom plants
-        plants.extend(bottom_plants)
-
         # Getting the crossing point for each row : point of intersection between a row and the top of the image.
         top_crossing_points = self.get_all_top_crossing_points(nb_left_plants, nb_right_plants)
 
@@ -322,4 +283,5 @@ class Particle:
             # Appending the plants located in the row
             plants.extend(row_plants)
 
+        return bottom_plants
         return plants
