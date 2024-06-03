@@ -5,6 +5,8 @@ import numpy as np
 # Import of the Particle class
 from simulator.particle import Particle
 
+from simulator.visualizer import Visualizer
+
 import cv2 as cv
 
 
@@ -67,7 +69,6 @@ class ParticleFilter:
             )
 
         print("Initial particles position value :")
-        self.print_particles()
 
     def validate_state(self, state):
         # Make sure state does not exceed allowed limits
@@ -78,13 +79,13 @@ class ParticleFilter:
         # 
         # if state[0] > self.offset_max:
         #     state[0] = self.offset_max - 1
-        # 
-        # # Validate Position
-        # while state[1] < self.position_min:
-        #     state[1] += (self.position_max - self.position_min)
+
+        # Validate Position
+        # if state[1] < self.position_min:
+        #     state[1] = self.position_min
         # 
         # if state[1] > self.position_max:
-        #     state[1] -= (self.position_max - self.position_min)
+        #     state[1] = self.position_max - 1
 
         # Validate Inter-plant
         if state[2] > self.inter_plant_max:
@@ -217,7 +218,7 @@ class ParticleFilter:
         # If the new position value doesn't respect its constraints than we move back the particular plant of an
         # inter-plant distance.
         if position > self.position_max:
-            # We move the particle back of inter-plant distance with some noise.
+            # We move the particle back of inter-plant distance then move down of motion move distance with some noise.
             new_move_distance = -np.random.normal(propagated_sample[2], self.process_noise[1], 1)[0]
 
             # Getting the new offset.
@@ -239,16 +240,13 @@ class ParticleFilter:
 
     # Measurement model
     # p(zk / xk)
-    def compute_likelihood(self, sample, measurement, plant_size):
+    def compute_likelihood_1(self, sample, measurement, plant_size):
         """
         Compute likelihood p(z|sample) for a specific measurement given (unweighted) sample state.
         The measurement is an image containing plants. The sample is not an image : it contains parameters values from
         which we can draw an image and/or find its plants positions. For each position given by the
         particle, we look at the pixels in the measurement image located around (size of the plant) this position.
         """
-        cv.imshow("Measurement", measurement)
-        cv.waitKey(0)
-
         # Expected plant positions assuming the current particle state
         particle = Particle(self.world, sample[0], sample[1], sample[2], sample[3], sample[4], sample[5])
         expected_plant_positions = particle.get_all_plants()
@@ -274,12 +272,16 @@ class ParticleFilter:
                 # We take into account the plants' size by considering the surrounding pixels.
                 for y in range(-int(plant_size / 2), int(plant_size / 2)):
                     for x in range(-int(plant_size / 2), int(plant_size / 2)):
-                        x_coordinate = int(plant[0] - x)
-                        y_coordinate = int(plant[1] - y)
+                        x_coordinate = int(plant[0] + x)
+                        y_coordinate = int(plant[1] + y)
 
                         if self.world.are_coordinates_valid(x_coordinate, y_coordinate):
                             # Setting the pixel's probability of corresponding to a plant to the in-row probability.
                             probability_array[y_coordinate][x_coordinate] = self.measurement_probability_in
+
+                # Without taking into account the plant size.
+                # Setting the pixel's probability of corresponding to a plant to the in-row probability.
+                #probability_array[int(plant[1])][int(plant[0])] = self.measurement_probability_in
         # ^| tested briefly, normally fonctionne.
 
         # Initialize number of pixels outside and inside the rows.
@@ -306,12 +308,11 @@ class ParticleFilter:
                 if qi == self.measurement_probability_in:
                     pr_zi_in_given_x += np.power(qi, zi) * np.power((1 - qi), (1 - zi))
                     nb_in += 1
-                    # print("zi, qi, pr_zi_in_given_x : {}, {}, {}".format(zi, qi, pr_zi_in_given_x))
+                    #print("zi, qi, pr_zi_in_given_x : {}, {}, {}".format(zi, qi, pr_zi_in_given_x))
                 else:
                     pr_zi_out_given_x += np.power(qi, zi) * np.power((1 - qi), (1 - zi))
                     nb_out += 1
-                    # print("zi, qi, pr_zi_out_given_x : {}, {}, {}".format(zi, qi, pr_zi_out_given_x))
-
+                    #print("zi, qi, pr_zi_out_given_x : {}, {}, {}".format(zi, qi, pr_zi_out_given_x))
                 # # Computing the probability of zi given x and knowing qi
                 # pr_zi_given_x = np.power(qi, zi) * np.power((1 - qi), (1 - zi))
                 # print("zi, qi, pr_zi_given_x : {}, {}, {}".format(zi, qi, pr_zi_given_x))
@@ -320,9 +321,123 @@ class ParticleFilter:
 
         # Computing the probability of z given x and knowing measurement_probability_in and out.
         # pr_z_given_x
+        print("pr_zi_in_given_x : {}".format(pr_zi_in_given_x))
+        print("pr_zi_out_given_x : {}".format(pr_zi_out_given_x))
         likelihood_sample = (pr_zi_in_given_x + pr_zi_out_given_x) / (nb_in + nb_out)
-        print("Likelihood_sample, in + out: {}".format(likelihood_sample))
+        print("Likelihood_sample: {}".format(likelihood_sample))
         return likelihood_sample
+
+    # Measurement model
+    # p(zk / xk)
+    def compute_likelihood(self, sample, measurement, plant_size, area_size):
+        """
+        Compute likelihood p(z|sample) for a specific measurement given (unweighted) sample state.
+        The measurement is an image containing plants. The sample is not an image : it contains parameters values from
+        which we can draw an image and/or find its plants positions. For each position given by the
+        particle, we look at the pixels in the measurement image located around (size of the plant) this position.
+        """
+        # Checking that Area size > plant size.
+        if area_size <= plant_size:
+            print("Error area size <= plant size")
+            return
+
+        # Expected plant positions assuming the current particle state
+        particle = Particle(self.world, sample[0], sample[1], sample[2], sample[3], sample[4], sample[5])
+        expected_plant_positions = particle.get_all_plants()
+
+        if expected_plant_positions == -1:
+            print("Compute likelihood can't be done because the particle doesn't return any plant positions.")
+            return 0
+
+        # Initialize array that will contain for each pixel its probability of corresponding to a plant.
+        # Initializing this array using the out-row probability.
+        probability_array = np.zeros((self.world.height, self.world.width), np.float64)
+        for y in range(self.world.height):
+            for x in range(self.world.width):
+                probability_array[y][x] = self.measurement_probability_out
+
+        # Setting the probability to in-row probability for each pixel corresponding to a plant position.
+        # For each plant we take its coordinates, and we modify the probability array using those.
+        for plant in expected_plant_positions:
+            if not self.world.are_coordinates_valid(plant[0], plant[1]):
+                print("Compute likelihood: invalid plant.")
+
+            else:
+                # We take into account the plants' size by considering the surrounding pixels.
+                for y in range(-int(plant_size / 2), int(plant_size / 2)):
+                    for x in range(-int(plant_size / 2), int(plant_size / 2)):
+                        x_coordinate = int(plant[0] + x)
+                        y_coordinate = int(plant[1] + y)
+
+                        if self.world.are_coordinates_valid(x_coordinate, y_coordinate):
+                            # Setting the pixel's probability of corresponding to a plant to the in-row probability.
+                            probability_array[y_coordinate][x_coordinate] = self.measurement_probability_in
+
+                # Without taking into account the plant size.
+                # Setting the pixel's probability of corresponding to a plant to the in-row probability.
+                # probability_array[int(plant[1])][int(plant[0])] = self.measurement_probability_in
+
+        # Initialize number of pixels outside and inside the rows.
+        nb_in = 0
+        nb_out = 0
+        green_pixels = 0
+
+        # Initialize probabilities
+        pr_zi_in_given_x = 1.0
+        pr_zi_out_given_x = 1.0
+
+        # Size of the area around the plant that we are looking at.
+        AREA_SIZE = area_size
+
+        # Compute the likelihood at around each plant position.
+        for plant in expected_plant_positions:
+            # Compute the likelihood for each pixel of the area.
+            for y in range(-int(AREA_SIZE / 2), int(AREA_SIZE / 2)):
+                for x in range(-int(AREA_SIZE / 2), int(AREA_SIZE / 2)):
+                    x_coordinate = int(plant[0] + x)
+                    y_coordinate = int(plant[1] + y)
+
+                    if not self.world.are_coordinates_valid(x_coordinate, y_coordinate):
+                        print("Compute likelihood: outside of the considered area.")
+
+                    else:
+                        # Setting zi regarding if the measured pixel is green.
+                        if measurement[y_coordinate][x_coordinate][1] == 255:
+                            zi = 1
+                            green_pixels += 1
+                        else:
+                            zi = 0
+
+                        # Getting qi.
+                        qi = probability_array[y_coordinate][x_coordinate]
+
+                        # Adding to the probability.
+                        if qi == self.measurement_probability_in:
+                            pr_zi_in_given_x += np.power(qi, zi) * np.power((1 - qi), (1 - zi))
+                            nb_in += 1
+                            # print("zi, qi, pr_zi_in_given_x : {}, {}, {}".format(zi, qi, pr_zi_in_given_x))
+                        else:
+                            pr_zi_out_given_x += np.power(qi, zi) * np.power((1 - qi), (1 - zi))
+                            nb_out += 1
+                            # print("zi, qi, pr_zi_out_given_x : {}, {}, {}".format(zi, qi, pr_zi_out_given_x))
+                        # # Computing the probability of zi given x and knowing qi
+                        # pr_zi_given_x = np.power(qi, zi) * np.power((1 - qi), (1 - zi))
+                        # print("zi, qi, pr_zi_given_x : {}, {}, {}".format(zi, qi, pr_zi_given_x))
+                        #
+                        # likelihood_sample *= pr_zi_given_x
+
+        # Computing the probability of z given x and knowing measurement_probability_in and out.
+        # pr_z_given_x
+        if nb_in + nb_out <= 0:
+            print("Likelihood: 0")
+            return 0
+        else:
+            likelihood_sample = (pr_zi_in_given_x / nb_in) / (pr_zi_out_given_x / nb_out)
+            print("Likelihood, pr_in, pr_out, in, out, green px: {}, ({} + {}) / ({} + {}), {}".format(likelihood_sample,
+                                                                                         pr_zi_in_given_x,
+                                                                                         pr_zi_out_given_x, nb_in,
+                                                                                         nb_out, green_pixels))
+            return likelihood_sample
 
 
 
