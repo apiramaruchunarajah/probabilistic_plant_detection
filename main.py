@@ -43,10 +43,13 @@ if __name__ == '__main__':
     true_plants_meas_noise_position_std = 7
 
     # Size of a plant : length of the side of a square
-    plant_size = 6
+    plant_size = 4
+
+    # Area size
+    area_size = 11
 
     # Initialize plants
-    plants = Plants(world, -100, 400, 160, 110, o=0, nb_rows=4, nb_plant_types=4)
+    plants = Plants(world, -100, 110, 160, 110, o=0, nb_rows=4, nb_plant_types=4)
     plants.setStandardDeviations(true_plants_motion_move_distance_std, true_plants_meas_noise_position_std)
     plants.generate_plants()
 
@@ -54,7 +57,7 @@ if __name__ == '__main__':
     # Particle filter settings
     ##
 
-    number_of_particles = 7
+    number_of_particles = 4
     # Limit values for the parameters we track.
     pf_state_limits = [0, world.width,  # Offset
                        world.height - 240, world.height,  # Position
@@ -72,12 +75,12 @@ if __name__ == '__main__':
     #                    0, 0.8]
 
     pf_state_limits = [world.width-110, world.width+110,  # Offset
-                       world.height - 100, world.height,  # Position
+                       world.height - 80, world.height,  # Position, on limite artificiellement l'espace de recherche de position
                        90, 130,  # Inter-plant, not too small
                        60, 100,  # Inter-row, not too low because get_bottom_plants
                        # can take too long /!\
                        -np.pi / 6, np.pi / 6,  # Skew
-                       0, 0.8]  # Convergence, close to 1 means parallel lines that can cause issues /!\
+                       0.20, 0.8]  # Convergence, close to 1 means parallel lines that can cause issues /!\
 
     # Process model noise (zero mean additive Gaussian noise)
     # This noise has a huge impact on the correctness of the particle0 filter
@@ -89,17 +92,17 @@ if __name__ == '__main__':
                      np.pi / 12,  # Skew
                      0.25]  # Convergence
 
-    process_noise = [25,
-                     40,
-                     10,
-                     10,  # ~
-                     np.pi/8,
-                     0.25]
+    process_noise = [0,
+                     11,
+                     0,
+                     11,  # ~
+                     np.pi / 24,
+                     0.0]
 
 
     # Probability associated to the measurement image. We have the probability for a pixel
-    probability_in = 0.99
-    probability_out = 0.02
+    probability_in = 0.90
+    probability_out = 0.01
     measurement_uncertainty = [probability_in, probability_out]
 
     # Set resampling algorithm used
@@ -118,8 +121,6 @@ if __name__ == '__main__':
     # Particles are selected uniformly randomly
     particle_filter_sir.initialize_particles_uniform()
 
-    particle_filter_sir.print_particles()
-
     ##
     # Start simulation
     ##
@@ -136,7 +137,7 @@ if __name__ == '__main__':
         meas_image = visualizer.measure()
 
         # Update SIR particle filter
-        particle_filter_sir.update(plants_setpoint_motion_move_distance, meas_image, plant_size)
+        particle_filter_sir.update(plants_setpoint_motion_move_distance, meas_image, plant_size, area_size)
 
         # # Show maximum normalized particle weight (converges to 1.0) and correctness (0 = correct)
         # w_max = particle_filter_sir.get_max_weight()
@@ -147,14 +148,16 @@ if __name__ == '__main__':
         avg_state = particle_filter_sir.get_average_state()
         avg_particle = Particle(world, avg_state[0], avg_state[1], avg_state[2], avg_state[3],
                                 avg_state[4], avg_state[5])
-        visualizer.draw_complete_particle(avg_particle)
+        visualizer.draw_complete_particle(avg_particle, (255, 0, 255), 7)
         #print("Avg skew : {}, avg convergence : {}, avg inter-plant : {}"
         #      .format(avg_particle.skew, avg_particle.convergence, avg_particle.ip_at_bottom))
 
+        nb = 0
         # # Drawing every particle
-        # for par in particle_filter_sir.particles:
-        #     particle = Particle(world, par[1][0], par[1][1], par[1][2], par[1][3], par[1][4], par[1][5])
-        #     visualizer.draw_complete_particle(particle)
+        for par in particle_filter_sir.particles:
+            #nb += 25
+            particle = Particle(world, par[1][0], par[1][1], par[1][2], par[1][3], par[1][4], par[1][5])
+            visualizer.draw_complete_particle(particle, (0, nb, 255), 6)
 
         # # Drawing the first particle
         # state = particle_filter_sir.particles[0][1]
