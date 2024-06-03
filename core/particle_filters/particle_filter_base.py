@@ -5,10 +5,6 @@ import numpy as np
 # Import of the Particle class
 from simulator.particle import Particle
 
-from simulator.visualizer import Visualizer
-
-import cv2 as cv
-
 
 # Modified code from :
 # Jos Elfring, Elena Torta, and René van de Molengraft.
@@ -219,7 +215,8 @@ class ParticleFilter:
         # inter-plant distance.
         if position > self.position_max:
             # We move the particle back of inter-plant distance then move down of motion move distance with some noise.
-            new_move_distance = -np.random.normal(propagated_sample[2], self.process_noise[1], 1)[0]
+            new_move_distance = \
+                np.random.normal(-propagated_sample[2] + motion_move_distance, self.process_noise[1], 1)[0]
 
             # Getting the new offset.
             offset_displacement = -new_move_distance * np.sin(propagated_sample[4])
@@ -356,7 +353,7 @@ class ParticleFilter:
             for x in range(self.world.width):
                 probability_array[y][x] = self.measurement_probability_out
 
-        # Setting the probability to in-row probability for each pixel corresponding to a plant position.
+        # Setting the probability to in-row probability for each pixel corresponding surrounding a plant position.
         # For each plant we take its coordinates, and we modify the probability array using those.
         for plant in expected_plant_positions:
             if not self.world.are_coordinates_valid(plant[0], plant[1]):
@@ -370,7 +367,7 @@ class ParticleFilter:
                         y_coordinate = int(plant[1] + y)
 
                         if self.world.are_coordinates_valid(x_coordinate, y_coordinate):
-                            # Setting the pixel's probability of corresponding to a plant to the in-row probability.
+                            # Setting the pixel's probability.
                             probability_array[y_coordinate][x_coordinate] = self.measurement_probability_in
 
                 # Without taking into account the plant size.
@@ -380,7 +377,6 @@ class ParticleFilter:
         # Initialize number of pixels outside and inside the rows.
         nb_in = 0
         nb_out = 0
-        green_pixels = 0
 
         # Initialize probabilities
         pr_zi_in_given_x = 1.0
@@ -389,7 +385,7 @@ class ParticleFilter:
         # Size of the area around the plant that we are looking at.
         AREA_SIZE = area_size
 
-        # Compute the likelihood at around each plant position.
+        # Compute the likelihood for pixels around each plant position.
         for plant in expected_plant_positions:
             # Compute the likelihood for each pixel of the area.
             for y in range(-int(AREA_SIZE / 2), int(AREA_SIZE / 2)):
@@ -397,14 +393,10 @@ class ParticleFilter:
                     x_coordinate = int(plant[0] + x)
                     y_coordinate = int(plant[1] + y)
 
-                    if not self.world.are_coordinates_valid(x_coordinate, y_coordinate):
-                        print("Compute likelihood: outside of the considered area.")
-
-                    else:
+                    if self.world.are_coordinates_valid(x_coordinate, y_coordinate):
                         # Setting zi regarding if the measured pixel is green.
                         if measurement[y_coordinate][x_coordinate][1] == 255:
                             zi = 1
-                            green_pixels += 1
                         else:
                             zi = 0
 
@@ -428,109 +420,17 @@ class ParticleFilter:
 
         # Computing the probability of z given x and knowing measurement_probability_in and out.
         # pr_z_given_x
-        if nb_in + nb_out <= 0:
+        if nb_in == 0 or nb_out == 0:
             print("Likelihood: 0")
             return 0
         else:
             likelihood_sample = (pr_zi_in_given_x / nb_in) / (pr_zi_out_given_x / nb_out)
-            print("Likelihood, pr_in, pr_out, in, out, green px: {}, ({} + {}) / ({} + {}), {}".format(likelihood_sample,
-                                                                                         pr_zi_in_given_x,
-                                                                                         pr_zi_out_given_x, nb_in,
-                                                                                         nb_out, green_pixels))
+            print("Likelihood, pr_in, pr_out, in, out, green px: {}, ({} + {}) / ({} + {})".format(likelihood_sample,
+                                                                                                   pr_zi_in_given_x,
+                                                                                                   pr_zi_out_given_x,
+                                                                                                   nb_in,
+                                                                                                   nb_out))
             return likelihood_sample
-
-
-
-
-
-
-
-
-
-
-    # Measurement model
-    # p(zk / xk)
-    def compute_likelihood_2(self, sample, measurement, plant_size):
-        """
-        Compute likelihood p(z|sample) for a specific measurement given (unweighted) sample state.
-        The measurement is an image containing plants. The sample is not an image : it contains parameters values from
-        which we can draw an image and/or find its plants positions. For each position given by the
-        particle, we look at the pixels in the measurement image located around (size of the plant) this position.
-        """
-
-        # Expected plant positions assuming the current particle state
-        particle = Particle(self.world, sample[0], sample[1], sample[2], sample[3], sample[4], sample[5])
-        expected_plant_positions = particle.get_all_plants()
-
-        if expected_plant_positions == -1:
-            print("Compute likelihood can't be done because the particle doesn't return a list of plant positions.")
-            return 0
-
-        # Initialize measurement likelihood for the particle/sample.
-        likelihood_sample = 1.0
-
-        # Initialize number of pixels counter
-        total_nb_pixels = 0
-
-        # Invalid plants
-        invalid_plants = 0
-
-        img = np.zeros((self.world.height, self.world.width, 3), np.uint8)
-        pixels = []
-
-        # Computing for each expected plant position its probability of really being a position where a plant is.
-        for plant in expected_plant_positions:
-            if not self.world.are_coordinates_valid(plant[0], plant[1]):
-                invalid_plants += 1
-
-            else:
-                # Initializing the total number of pixels in the surrounding and the number of green pixels among them.
-                total_nb_surrounding_pixels = 0
-                nb_green_pixels = 0
-
-                # Going through all the surrounding pixels.
-                for y in range(-int(plant_size / 2), int(plant_size / 2)):
-                    for x in range(-int(plant_size / 2), int(plant_size / 2)):
-                        x_coordinate = int(plant[0] - x)
-                        y_coordinate = int(plant[1] - y)
-
-                        if self.world.are_coordinates_valid(x_coordinate, y_coordinate):
-                            measured_pixel = measurement[y_coordinate][x_coordinate]
-                            total_nb_surrounding_pixels += 1
-                            # Checking if the pixel is green.
-                            if measured_pixel[1] == 255:
-                                nb_green_pixels += 1
-                                pixels.append(np.asarray([x_coordinate, y_coordinate]))
-
-                # Getting the number of pixels other than green in that surrounding.
-                nb_other_pixels = total_nb_surrounding_pixels - nb_green_pixels
-
-                if total_nb_surrounding_pixels <= 0:
-                    print("Plant : {}".format(plant))
-
-                # Computing the probability associated to the plant position.
-                pr_plant_given_position = ((nb_green_pixels * self.measurement_uncertainty[0] +
-                                            nb_other_pixels * self.measurement_uncertainty[1])
-                                           / total_nb_surrounding_pixels)
-
-                likelihood_sample *= pr_plant_given_position
-                total_nb_pixels += total_nb_surrounding_pixels
-
-        for pixel in pixels:
-            img[pixel[1]][pixel[0]] = (0, 255, 0)
-
-        print("Green pixels : {}".format(len(pixels)))
-        cv.imshow("Green pixels", img)
-        cv.waitKey(0)
-
-        return len(pixels)
-
-        if total_nb_pixels <= 0:
-            return 0
-        else:
-            print("Likelihood : {}".format(np.power(likelihood_sample, (1/total_nb_pixels))))
-            #return likelihood_sample
-            return np.power(likelihood_sample, (1/total_nb_pixels))
 
     @abstractmethod
     def update(self, plants_motion_move_distance, measurement, plant_size):
