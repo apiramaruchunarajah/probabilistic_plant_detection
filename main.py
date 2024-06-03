@@ -49,7 +49,7 @@ if __name__ == '__main__':
     area_size = 4
 
     # Initialize plants
-    plants = Plants(world, -100, 400, 160, 110, o=0, nb_rows=4, nb_plant_types=4)
+    plants = Plants(world, -100, 310, 160, 110, o=0, nb_rows=4, nb_plant_types=4)
     plants.setStandardDeviations(true_plants_motion_move_distance_std, true_plants_meas_noise_position_std)
     plants.generate_plants()
 
@@ -57,7 +57,7 @@ if __name__ == '__main__':
     # Particle filter settings
     ##
 
-    number_of_particles = 25
+    number_of_particles = 40
     # Limit values for the parameters we track.
     pf_state_limits = [0, world.width,  # Offset
                        world.height - 240, world.height,  # Position
@@ -78,9 +78,9 @@ if __name__ == '__main__':
                        world.height - 80, world.height,  # Position, on limite artificiellement l'espace de recherche de position
                        90, 130,  # Inter-plant, not too small
                        151, 170,  # Inter-row, not too low because get_bottom_plants
-                       # can take too long /!\
-                       -np.pi / 6, np.pi / 6,  # Skew
-                       0.20, 0.8]  # Convergence, close to 1 means parallel lines that can cause issues /!\
+                       # can take too long /!\          print("Compute likelihood: outside of the considered area.")
+                       -np.pi / 12, np.pi / 12,  # Skew
+                       0.1, 0.4]  # Convergence, close t                    else:o 1 means parallel lines that can cause issues /!\
 
     # Process model noise (zero mean additive Gaussian noise)
     # This noise has a huge impact on the correctness of the particle0 filter
@@ -89,15 +89,15 @@ if __name__ == '__main__':
                      motion_model_move_distance_std,  # Position
                      11,  # Inter-plant
                      11,  # Inter-row
-                     np.pi / 12,  # Skew
-                     0.25]  # Convergence
-
-    process_noise = [0,
-                     40,
-                     0,
-                     pf_state_limits[7] / 4,  # ~
-                     np.pi / 24,
-                     0.0]
+                     np.pi / 24,  # Skew
+                     0.25]  # Convergence                    
+                                                             
+    process_noise = [0,  # Offset                            import cv2 as cv
+                     (pf_state_limits[3] - pf_state_limits[2]) / 4,  # Position
+                     (pf_state_limits[5] - pf_state_limits[4]) / 4,  # IP
+                     (pf_state_limits[7] - pf_state_limits[7]) / 4,  # IR
+                     (pf_state_limits[9] - pf_state_limits[8]) / 4,  # Skew
+                     (pf_state_limits[11] - pf_state_limits[10]) / 2]  # Convergence
 
 
     # Probability associated to the measurement image. We have the probability for a pixel
