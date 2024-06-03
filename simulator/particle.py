@@ -283,4 +283,5 @@ class Particle:
             # Appending the plants located in the row
             plants.extend(row_plants)
 
+        return bottom_plants
         return plants
