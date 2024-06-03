@@ -43,13 +43,13 @@ if __name__ == '__main__':
     true_plants_meas_noise_position_std = 7
 
     # Size of a plant : length of the side of a square
-    plant_size = 4
+    plant_size = 2
 
     # Area size
-    area_size = 11
+    area_size = 4
 
     # Initialize plants
-    plants = Plants(world, -100, 110, 160, 110, o=0, nb_rows=4, nb_plant_types=4)
+    plants = Plants(world, -100, 400, 160, 110, o=0, nb_rows=4, nb_plant_types=4)
     plants.setStandardDeviations(true_plants_motion_move_distance_std, true_plants_meas_noise_position_std)
     plants.generate_plants()
 
@@ -57,7 +57,7 @@ if __name__ == '__main__':
     # Particle filter settings
     ##
 
-    number_of_particles = 4
+    number_of_particles = 25
     # Limit values for the parameters we track.
     pf_state_limits = [0, world.width,  # Offset
                        world.height - 240, world.height,  # Position
@@ -154,10 +154,10 @@ if __name__ == '__main__':
 
         nb = 0
         # # Drawing every particle
-        for par in particle_filter_sir.particles:
-            #nb += 25
-            particle = Particle(world, par[1][0], par[1][1], par[1][2], par[1][3], par[1][4], par[1][5])
-            visualizer.draw_complete_particle(particle, (0, nb, 255), 6)
+        # for par in particle_filter_sir.particles:
+        #     #nb += 25
+        #     particle = Particle(world, par[1][0], par[1][1], par[1][2], par[1][3], par[1][4], par[1][5])
+        #     visualizer.draw_complete_particle(particle, (0, nb, 255), 6)
 
         # # Drawing the first particle
         # state = particle_filter_sir.particles[0][1]
