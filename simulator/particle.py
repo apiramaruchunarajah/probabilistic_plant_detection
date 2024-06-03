@@ -12,7 +12,7 @@ class Particle:
 
         self.world = world
         if not (self.world.are_coordinates_valid(self.offset, self.position)):
-            print("Warning: particle's offsett and/or position has "
+            print("Warning: particle's offset and/or position has "
                   "an invalid value : ({}, {}).".format(int(self.offset), int(self.position)))
 
     def get_bottom_plants(self):
