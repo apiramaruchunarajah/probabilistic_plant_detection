@@ -95,7 +95,7 @@ if __name__ == '__main__':
     process_noise = [0,
                      11,
                      0,
-                     11,  # ~
+                     40,  # ~
                      np.pi / 24,
                      0.0]
 
