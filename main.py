@@ -77,7 +77,7 @@ if __name__ == '__main__':
     pf_state_limits = [world.width-110, world.width+110,  # Offset
                        world.height - 80, world.height,  # Position, on limite artificiellement l'espace de recherche de position
                        90, 130,  # Inter-plant, not too small
-                       60, 100,  # Inter-row, not too low because get_bottom_plants
+                       151, 170,  # Inter-row, not too low because get_bottom_plants
                        # can take too long /!\
                        -np.pi / 6, np.pi / 6,  # Skew
                        0.20, 0.8]  # Convergence, close to 1 means parallel lines that can cause issues /!\
@@ -93,9 +93,9 @@ if __name__ == '__main__':
                      0.25]  # Convergence
 
     process_noise = [0,
-                     11,
+                     40,
                      0,
-                     40,  # ~
+                     pf_state_limits[7] / 4,  # ~
                      np.pi / 24,
                      0.0]
 
@@ -139,10 +139,10 @@ if __name__ == '__main__':
         # Update SIR particle filter
         particle_filter_sir.update(plants_setpoint_motion_move_distance, meas_image, plant_size, area_size)
 
-        # # Show maximum normalized particle weight (converges to 1.0) and correctness (0 = correct)
-        # w_max = particle_filter_sir.get_max_weight()
-        # max_weights.append(w_max)
-        # print("Time step {}: max weight: {}".format(i, w_max))
+        # Show maximum normalized particle weight (converges to 1.0) and correctness (0 = correct)
+        w_max = particle_filter_sir.get_max_weight()
+        max_weights.append(w_max)
+        print("Time step {}: max weight: {}".format(i, w_max))
 
         # Drawing a particle
         avg_state = particle_filter_sir.get_average_state()
@@ -152,18 +152,12 @@ if __name__ == '__main__':
         #print("Avg skew : {}, avg convergence : {}, avg inter-plant : {}"
         #      .format(avg_particle.skew, avg_particle.convergence, avg_particle.ip_at_bottom))
 
-        nb = 0
+        # nb = 0
         # # Drawing every particle
         # for par in particle_filter_sir.particles:
-        #     #nb += 25
+        #     # nb += 25
         #     particle = Particle(world, par[1][0], par[1][1], par[1][2], par[1][3], par[1][4], par[1][5])
         #     visualizer.draw_complete_particle(particle, (0, nb, 255), 6)
-
-        # # Drawing the first particle
-        # state = particle_filter_sir.particles[0][1]
-        # particle = Particle(world, state[0], state[1], state[2], state[3],
-        #                     state[4], state[5])
-        # visualizer.draw_complete_particle(particle)
 
         # Showing the image
         cv.imshow("Crop rows", visualizer.img)
