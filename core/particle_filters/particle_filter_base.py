@@ -235,8 +235,7 @@ class ParticleFilter:
 
         return self.validate_state(propagated_sample)
 
-    # Measurement model
-    # p(zk / xk)
+    # This method of computing the likelihood is not the one used.
     def compute_likelihood_1(self, sample, measurement, plant_size):
         """
         Compute likelihood p(z|sample) for a specific measurement given (unweighted) sample state.
