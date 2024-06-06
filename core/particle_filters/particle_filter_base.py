@@ -328,9 +328,6 @@ class ParticleFilter:
     def compute_likelihood(self, sample, measurement, plant_size, area_size):
         """
         Compute likelihood p(z|sample) for a specific measurement given (unweighted) sample state.
-        The measurement is an image containing plants. The sample is not an image : it contains parameters values from
-        which we can draw an image and/or find its plants positions. For each position given by the
-        particle, we look at the pixels in the measurement image located around (size of the plant) this position.
         """
         # Checking that Area size > plant size.
         if area_size <= plant_size:
